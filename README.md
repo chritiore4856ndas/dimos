@@ -35,16 +35,16 @@ We are shipping a first look at the DIMOS x Unitree Go2 integration, allowing fo
 - Camera feeds (image_raw, compressed_image, etc.)
 - IMU data
 - State information
-- Lidar / PointCloud primitives 🚧
+- Lidar / PointCloud primitives
 - Any other generic Unitree ROS2 topics
 
 ### Features 
 
 - **DimOS Agents**
   - Agent() classes with planning, spatial reasoning, and Robot.Skill() function calling abilities.
-  - Integrate with any off-the-shelf model: OpenAIAgent, GeminiAgent 🚧, DeepSeekAgent 🚧, HuggingfaceAgent 🚧, etc.
+  - Integrate with any off-the-shelf hosted or local model: OpenAIAgent, ClaudeAgent, GeminiAgent 🚧, DeepSeekAgent 🚧, HuggingFaceRemoteAgent, HuggingFaceLocalAgent, etc.
   - Modular agent architecture for easy extensibility and chaining of Agent output --> Subagents input. 
-  - Agent spatial / language memory for location grounded reasoning and recall. 🚧
+  - Agent spatial / language memory for location grounded reasoning and recall.
 
 - **DimOS Infrastructure**
   - A reactive data streaming architecture using RxPY to manage real-time video (or other sensor input), outbound commands, and inbound robot state between the DimOS interface, Agents, and ROS2.
@@ -69,6 +69,8 @@ We are shipping a first look at the DIMOS x Unitree Go2 integration, allowing fo
 Configure your environment variables in `.env`
 ```bash
 OPENAI_API_KEY=<OPENAI_API_KEY>
+ALIBABA_API_KEY=<ALIBABA_API_KEY>
+ANTHROPIC_API_KEY=<ANTHROPIC_API_KEY>
 ROBOT_IP=<ROBOT_IP>
 CONN_TYPE=webrtc
 WEBRTC_SERVER_HOST=0.0.0.0
@@ -106,6 +108,9 @@ source venv/bin/activate
 
 sudo apt install portaudio19-dev python3-pyaudio
 
+# Install torch and torchvision if not already installed
+pip install -r base-requirements.txt
+
 # Install dependencies
 pip install -r requirements.txt
 
@@ -118,9 +123,9 @@ cp default.env .env
 Full functionality will require API keys for the following:
 
 Requirements: 
-- OpenAI API key (required for OpenAIAgent)
-- Claude API key (optional for ClaudeAgent)
-- Alibaba API key (optional for QwenAgent)
+- OpenAI API key (required for all LLMAgents due to OpenAIEmbeddings)
+- Claude API key (required for ClaudeAgent)
+- Alibaba API key (required for Navigation skills)
 
 These keys can be added to your .env file or exported as environment variables.
 ```
@@ -129,14 +134,13 @@ export CLAUDE_API_KEY=<your private key>
 export ALIBABA_API_KEY=<your private key>
 ```
 
-
 ### ROS2 Unitree Go2 SDK Installation 
 
 #### System Requirements
 - Ubuntu 22.04 
 - ROS2 Distros: Iron, Humble, Rolling
 
-See [Unitree Go2 ROS2 SDK](https://github.com/abizovnuralem/go2_ros2_sdk) for additional installation instructions.
+See [Unitree Go2 ROS2 SDK](https://github.com/dimensionalOS/go2_ros2_sdk) for additional installation instructions.
 
 ```bash
 mkdir -p ros2_ws
