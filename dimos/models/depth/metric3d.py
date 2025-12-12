@@ -16,6 +16,9 @@ import onnxruntime as ort
 from PIL import Image
 import cv2
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 
 # May need to add this back for import to work
 # external_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'external', 'Metric3D'))
@@ -24,14 +27,16 @@ import numpy as np
 
 
 class Metric3D:
-    def __init__(self, onnx_model_path, gt_depth_scale=256.0, intrinsic=None, provider='auto'):
+    def __init__(self, gt_depth_scale=256.0, camera_intrinsics=None, provider='auto', onnx_model_path='onnx/metric3d_vit_small.onnx'):
         self.input_size = (616, 1064)  # for vit model; adjust if needed
         self.gt_depth_scale = gt_depth_scale
-        self.intrinsic = intrinsic or [707.0493, 707.0493, 604.0814, 180.5066]
+        self.intrinsic = camera_intrinsics or [707.0493, 707.0493, 604.0814, 180.5066]
         self.intrinsic_scaled = None
         self.pad_info = None
         self.rgb_origin = None
+        self.onnx_model_path = onnx_model_path
 
+        print(f"############################################# Using model: {onnx_model_path} ###########################################################")
         # Provider selection logic
         if provider == 'auto':
             # Try CUDA, then TensorRT, then CPU
@@ -68,7 +73,9 @@ class Metric3D:
             ]
         else:
             providers = ['CPUExecutionProvider']
-
+        
+        print(f"############################################# Using providers: {providers} ###########################################################")
+        
         self.session = ort.InferenceSession(onnx_model_path, providers=providers)
 
     """
@@ -84,7 +91,7 @@ class Metric3D:
         if len(intrinsic) != 4:
             raise ValueError("Intrinsic must be a list or tuple with 4 values: [fx, fy, cx, cy]")
         self.intrinsic = intrinsic
-        print(f"Intrinsics updated to: {self.intrinsic}")
+        logger.info(f"Intrinsics updated to: {self.intrinsic}")
 
     def prepare_input(self, rgb_image):
         h, w = rgb_image.shape[:2]
@@ -128,13 +135,13 @@ class Metric3D:
             print(f"Input image: {img}")
         try:
             if isinstance(img, str):
-                print(f"Image type string: {type(img)}")
+                logger.debug(f"Image type string: {type(img)}")
                 self.rgb_origin = cv2.imread(img)[:, :, ::-1]
             else:
                 self.rgb_origin = img
         except Exception as e:
-            print(f"Error parsing into infer_depth: {e}")
-            return None
+            logger.error(f"Error parsing into infer_depth: {e}")
+            return np.array([])
 
         onnx_input, original_shape = self.prepare_input(self.rgb_origin)
         outputs = self.session.run(None, onnx_input)
@@ -156,20 +163,21 @@ class Metric3D:
             canonical_to_real_scale = self.intrinsic_scaled[0] / 1000.0
             depth = depth * canonical_to_real_scale
 
-        # Convert to 16-bit and PIL Image
-        out_16bit_numpy = (depth * self.gt_depth_scale).astype(np.uint16)
-        depth_map_pil = Image.fromarray(out_16bit_numpy)
-        return depth_map_pil
+        # Return depth as float32 numpy array in meters (matching old torch version)
+        return depth.astype(np.float32)
 
     def save_depth(self, pred_depth):
         # Save the depth map to a file
-        if isinstance(pred_depth, Image.Image):
-            pred_depth_np = np.array(pred_depth)
+        if isinstance(pred_depth, np.ndarray):
+            # Scale for 16-bit save
+            pred_depth_scaled = (pred_depth * self.gt_depth_scale).astype(np.uint16)
+        elif isinstance(pred_depth, Image.Image):
+            pred_depth_scaled = np.array(pred_depth)
         else:
-            pred_depth_np = pred_depth
+            pred_depth_scaled = pred_depth
         output_depth_file = "output_depth_map.png"
-        cv2.imwrite(output_depth_file, pred_depth_np)
-        print(f"Depth map saved to {output_depth_file}")
+        cv2.imwrite(output_depth_file, pred_depth_scaled)
+        logger.info(f"Depth map saved to {output_depth_file}")
 
     def eval_predicted_depth(self, depth_file, pred_depth):
         if depth_file is not None:
@@ -182,4 +190,9 @@ class Metric3D:
             assert gt_depth.shape == pred_depth.shape
             mask = gt_depth > 1e-8
             abs_rel_err = (np.abs(pred_depth[mask] - gt_depth[mask]) / gt_depth[mask]).mean()
-            print("abs_rel_err:", abs_rel_err)
+            logger.info(f"abs_rel_err: {abs_rel_err}")
+    
+    def cleanup(self):
+        """Clean up ONNX session resources."""
+        if hasattr(self, 'session') and self.session:
+            self.session = None
