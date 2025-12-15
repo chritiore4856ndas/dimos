@@ -221,7 +221,7 @@ class UnitreeCameraModule(Module):
             # Push this frame into the channel via SourceActor
             start = time.time()
             self._process_depth(cp.asarray(msg.data) if self.backend == "cuda" else msg.data)
-            #self._source.publish(cp.asarray(msg.data) if self.backend == "cuda" else msg.data)
+            # self._source.publish(cp.asarray(msg.data) if self.backend == "cuda" else msg.data)
             end = time.time()
             logger.info(
                 f"self.source_publish returned. Time: {end}. Time taken: {end - start:.4f} seconds"
@@ -277,8 +277,9 @@ class UnitreeCameraModule(Module):
             if len(self._latency_window) > 0:
                 avg_latency = sum(self._latency_window) / len(self._latency_window)
                 fps = 1.0 / avg_latency if avg_latency > 0 else 0.0
-                logger.info(f"End-to-end FPS (latency-based): {fps:.2f}, avg latency={avg_latency*1000:.1f} ms")
-
+                logger.info(
+                    f"End-to-end FPS (latency-based): {fps:.2f}, avg latency={avg_latency * 1000:.1f} ms"
+                )
 
             # --- FPS counter over sliding window ---
             now = time.time()
