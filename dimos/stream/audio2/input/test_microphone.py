@@ -24,5 +24,6 @@ from dimos.stream.audio2.output import speaker
 from dimos.stream.audio2.types import AudioFormat, AudioSpec
 
 
+@pytest.mark.tool
 def test_mic_to_speaker():
     microphone().pipe(normalizer(), vumeter(), speaker()).run()

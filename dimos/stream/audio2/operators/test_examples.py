@@ -37,7 +37,7 @@ def test_vumeter_with_playback():
     ).pipe(raw_vumeter(), speaker()).run()
 
     # Give cleanup threads time to finish
-    time.sleep(0.2)
+    time.sleep(1.0)
 
 
 def test_normalize_quiet_audio_with_raw_vumeter():

@@ -159,6 +159,15 @@ class GStreamerSourceBase(GStreamerPipelineBase, ABC):
         logger.info(f"{self._get_source_name()}: End of stream")
         self._running = False
 
+        # Check if cleanup thread already exists (avoid duplicate cleanup threads)
+        if (
+            hasattr(self, "_cleanup_thread")
+            and self._cleanup_thread
+            and self._cleanup_thread.is_alive()
+        ):
+            logger.debug(f"{self._get_source_name()}: Cleanup thread already running, skipping")
+            return
+
         # Call observer.on_completed() in a separate thread to avoid blocking
         # (downstream operators may block waiting for cleanup)
         notify_thread = None
@@ -176,18 +185,20 @@ class GStreamerSourceBase(GStreamerPipelineBase, ABC):
         # Schedule cleanup in a separate thread, but wait for notify to complete first
         def cleanup_after_notify():
             # Wait for notify thread to complete so downstream operators can finish
+            # Notify typically completes in <100ms, but use generous timeout for safety
             if notify_thread:
-                notify_thread.join(timeout=10.0)
+                notify_thread.join(timeout=0.5)
                 if notify_thread.is_alive():
                     logger.warning(
-                        f"{self._get_source_name()}: Notify thread still alive after 10s"
+                        f"{self._get_source_name()}: Notify thread still alive after 0.5s, "
+                        f"proceeding with cleanup anyway"
                     )
             self._cleanup_on_completion()
 
         try:
             self._cleanup_thread = threading.Thread(
                 target=cleanup_after_notify,
-                daemon=True,
+                daemon=False,  # Non-daemon so it always completes
                 name=f"{self._get_source_name()}-cleanup",
             )
             self._cleanup_thread.start()

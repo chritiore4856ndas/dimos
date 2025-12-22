@@ -19,6 +19,7 @@ import time
 
 import pytest
 
+from dimos.stream.audio2.input import microphone
 from dimos.stream.audio2.input.file import file_input
 from dimos.stream.audio2.input.signal import WaveformType, signal
 from dimos.stream.audio2.operators import normalizer, robotize, vumeter
@@ -67,8 +68,6 @@ def test_network_output_to_server_signal():
     concat(*notes).pipe(normalizer(), network_output(host=host, port=5002, codec="opus")).run()
 
     time.sleep(0.2)
-    # .run() blocks until streaming completes (sync=True paces packets at real-time)
-    # No manual sleep needed
 
 
 def test_network_output_to_server_file():
@@ -89,5 +88,20 @@ def test_network_output_to_server_file():
 
     time.sleep(0.2)
 
-    # .run() blocks until streaming completes (sync=True paces packets at real-time)
-    # No manual sleep needed
+
+@pytest.mark.tool
+def test_network_mic():
+    """Test streaming to actual server (requires manual setup)."""
+
+    # To run this test:
+    # 1. Start the server: ./gstreamer_scripts/gstreamer.sh
+    # 2. Run this test with: pytest test_network.py::test_network_output_to_server_file
+
+    microphone().pipe(
+        robotize(),
+        normalizer(),
+        vumeter(),
+        network_output(host=host, port=5002, codec="opus"),
+    ).run()
+
+    time.sleep(0.2)
