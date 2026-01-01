@@ -68,22 +68,19 @@ class SO101ArmRobot(Robot):
 
         # Deploy manipulation module
         logger.info("Deploying manipulation module...")
-        self.manipulation_interface = self.dimos.deploy(
-            ManipulationModule,
-            arm = SO101Arm()
-        )
+        self.manipulation_interface = self.dimos.deploy(ManipulationModule, arm=SO101Arm())
 
         # Connect modules
         self.manipulation_interface.rgb_image.connect(self.camera.color_image)
         # self.manipulation_interface.depth_image.connect(self.camera.depth_image)
         self.manipulation_interface.camera_info.connect(self.camera.camera_info)
-        
+
         # Configure manipulation output
         self.manipulation_interface.viz_image.transport = core.LCMTransport("/viz/output", Image)
-        
+
         # Print module info
         logger.info("Modules configured:")
-        print("\Camera Module:")
+        print(r"\Camera Module:")
         print(self.camera.io())
         print("\nManipulation Module:")
         print(self.manipulation_interface.io())
@@ -93,7 +90,7 @@ class SO101ArmRobot(Robot):
         self.foxglove_bridge.start()
         self.camera.start()
         self.manipulation_interface.start()
-        
+
         await asyncio.sleep(2)  # Allow initialization
         logger.info("SO101ArmRobot initialized and started")
 
@@ -168,4 +165,3 @@ async def run_so101_arm() -> None:
 
 if __name__ == "__main__":
     asyncio.run(run_so101_arm())
-

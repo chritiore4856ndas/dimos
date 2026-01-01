@@ -21,6 +21,11 @@ import tty
 
 from dimos_lcm.geometry_msgs import Pose, Twist, Vector3
 import kinpy as kp
+from lerobot.motors import Motor, MotorCalibration, MotorNormMode
+from lerobot.motors.feetech import (
+    FeetechMotorsBus,
+    OperatingMode,
+)
 import numpy as np
 import pytest
 from reactivex.disposable import Disposable
@@ -31,12 +36,6 @@ from dimos.core import In, Module, rpc
 import dimos.protocol.service.lcmservice as lcmservice
 from dimos.utils.logging_config import setup_logger
 from dimos.utils.transform_utils import euler_to_quaternion, quaternion_to_euler
-
-from lerobot.motors import Motor, MotorCalibration, MotorNormMode
-from lerobot.motors.feetech import (
-    FeetechMotorsBus,
-    OperatingMode,
-)
 
 logger = setup_logger(__file__)
 
@@ -168,4 +167,3 @@ if __name__ == "__main__":
         pass
 
     run_velocity_controller()
-
