@@ -77,7 +77,7 @@ class PiperArmRobot(Robot):
 
         # Deploy manipulation module
         logger.info("Deploying manipulation module...")
-        self.manipulation_interface = self.dimos.deploy(ManipulationModule, arm=PiperArm()) # type: ignore[attr-defined]
+        self.manipulation_interface = self.dimos.deploy(ManipulationModule, arm=PiperArm())  # type: ignore[attr-defined]
 
         # Connect manipulation inputs to ZED outputs
         self.manipulation_interface.rgb_image.connect(self.stereo_camera.color_image)  # type: ignore[attr-defined]
