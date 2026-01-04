@@ -15,15 +15,19 @@ from __future__ import annotations
 
 from builtin_interfaces.msg import Time as ROSTime
 from dimos_lcm.vision_msgs.Detection3D import Detection3D as LCMDetection3D
-from geometry_msgs.msg import Point as ROSPoint
-from geometry_msgs.msg import Pose as ROSPose
-from geometry_msgs.msg import Quaternion as ROSQuaternion
-from geometry_msgs.msg import Vector3 as ROSVector3
+from geometry_msgs.msg import (
+    Point as ROSPoint,
+    Pose as ROSPose,
+    Quaternion as ROSQuaternion,
+    Vector3 as ROSVector3,
+)
 from std_msgs.msg import Header as ROSHeader
-from vision_msgs.msg import BoundingBox3D as ROSBoundingBox3D
-from vision_msgs.msg import Detection3D as ROSDetection3D
-from vision_msgs.msg import ObjectHypothesis as ROSObjectHypothesis
-from vision_msgs.msg import ObjectHypothesisWithPose as ROSObjectHypothesisWithPose
+from vision_msgs.msg import (
+    BoundingBox3D as ROSBoundingBox3D,
+    Detection3D as ROSDetection3D,
+    ObjectHypothesis as ROSObjectHypothesis,
+    ObjectHypothesisWithPose as ROSObjectHypothesisWithPose,
+)
 
 from dimos.types.timestamped import to_timestamp
 
@@ -38,8 +42,8 @@ class Detection3D(LCMDetection3D):
         """Initialize with fresh mutable objects to avoid shared state."""
         super().__init__()
         # Create fresh instances to avoid shared mutable state from LCM class defaults
-        from dimos_lcm.vision_msgs import BoundingBox3D
         from dimos_lcm.std_msgs import Header
+        from dimos_lcm.vision_msgs import BoundingBox3D
 
         self.header = Header()
         self.results = []

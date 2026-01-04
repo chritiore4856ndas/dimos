@@ -39,7 +39,11 @@ from dimos.core import Module, rpc
 from dimos.msgs.sensor_msgs import CameraInfo, Image
 from dimos.perception.detection.detectors.yoloe import Yoloe2DDetector, YoloePromptMode
 from dimos.perception.detection.type import ImageDetections2D
-from dimos.perception.detection.type.detection3d.object import Object, aggregate_pointclouds, to_detection3d_array
+from dimos.perception.detection.type.detection3d.object import (
+    Object,
+    aggregate_pointclouds,
+    to_detection3d_array,
+)
 from dimos.utils.logging_config import setup_logger
 
 logger = setup_logger()

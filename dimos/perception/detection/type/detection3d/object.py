@@ -28,12 +28,13 @@ from dimos.msgs.geometry_msgs import PoseStamped, Quaternion, Vector3
 from dimos.msgs.sensor_msgs import Image, PointCloud2
 from dimos.msgs.std_msgs import Header
 from dimos.msgs.vision_msgs import Detection3D as ROSDetection3D, Detection3DArray
-from dimos.perception.detection.type.detection2d import ImageDetections2D
 from dimos.perception.detection.type.detection2d.seg import Detection2DSeg
 from dimos.perception.detection.type.detection3d.base import Detection3D
 
 if TYPE_CHECKING:
     from dimos_lcm.sensor_msgs import CameraInfo
+
+    from dimos.perception.detection.type.detection2d import ImageDetections2D
 
 
 @dataclass

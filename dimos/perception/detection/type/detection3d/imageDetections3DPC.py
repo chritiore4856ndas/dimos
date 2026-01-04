@@ -15,7 +15,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-import open3d as o3d
 
 from builtin_interfaces.msg import Time as ROSTime
 from dimos_lcm.foxglove_msgs import SceneUpdate
@@ -26,6 +25,7 @@ from geometry_msgs.msg import (
     Vector3 as ROSVector3,
 )
 import numpy as np
+import open3d as o3d
 from std_msgs.msg import Header as ROSHeader
 from vision_msgs.msg import (
     BoundingBox3D as ROSBoundingBox3D,
