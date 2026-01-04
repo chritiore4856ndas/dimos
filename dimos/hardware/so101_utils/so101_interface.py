@@ -15,7 +15,6 @@
 import json
 import logging
 import time
-from typing import Dict, Tuple
 
 import numpy as np
 from lerobot.motors import Motor, MotorCalibration, MotorNormMode
@@ -68,7 +67,7 @@ class SO101Interface:
         # Measured offsets when the arm is mechanically at zero.
         self.joint_offsets_deg = np.array([0,0.26373626, 2.59340659, 0.65934066, 0.21978022], dtype=float)
 
-        self.motor_ids: Dict[str, int] = {
+        self.motor_ids: dict[str, int] = {
             "shoulder_pan": 1,
             "shoulder_lift": 2,
             "elbow_flex": 3,
@@ -100,12 +99,12 @@ class SO101Interface:
     #   Bus / motor setup
     # -------------------------------------------------------------------------
 
-    def _load_calibration(self) -> Dict[str, MotorCalibration]:
+    def _load_calibration(self) -> dict[str, MotorCalibration]:
         """Load motor calibration from JSON file."""
         try:
             with open(self.calibration_path, "r") as f:
                 calib_data = json.load(f)
-            calibration: Dict[str, MotorCalibration] = {}
+            calibration: dict[str, MotorCalibration] = {}
             for name, data in calib_data.items():
                 calibration[name] = MotorCalibration(**data)
             return calibration
@@ -120,7 +119,7 @@ class SO101Interface:
         logger.info("Connecting to SO-101 arm on port %s", self.port)
 
         norm_mode_body = MotorNormMode.DEGREES
-        motors: Dict[str, Motor] = {}
+        motors: dict[str, Motor] = {}
 
         # Arm joints: normalized in degrees
         for name in self.motor_names:
@@ -486,7 +485,7 @@ class SO101Interface:
         val = max(0.0, min(100.0, val))
         self.bus.write("Goal_Position", self.gripper_name, val)
 
-    def get_gripper_state(self) -> Tuple[float, float]:
+    def get_gripper_state(self) -> tuple[float, float]:
         """
         Get current gripper state.
 
