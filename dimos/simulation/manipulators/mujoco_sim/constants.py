@@ -28,4 +28,3 @@ VELOCITY_STOP_THRESHOLD = 1e-6
 
 # Position target zero threshold (rad) - below this, treat as zero
 POSITION_ZERO_THRESHOLD = 1e-6
-

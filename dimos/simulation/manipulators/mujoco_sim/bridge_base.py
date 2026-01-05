@@ -23,7 +23,6 @@ and simulation.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from pathlib import Path
 import threading
 import time
 from typing import TYPE_CHECKING
@@ -42,6 +41,8 @@ from dimos.simulation.manipulators.mujoco_sim.model_utils import load_manipulato
 from dimos.utils.logging_config import setup_logger
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     pass
 
 logger = setup_logger()
@@ -81,7 +82,8 @@ class MujocoSimBridgeBase(ABC):
         self._robot_name = robot_name
         self._num_joints = num_joints
         self._control_frequency = (
-            control_frequency if control_frequency > MIN_CONTROL_FREQUENCY
+            control_frequency
+            if control_frequency > MIN_CONTROL_FREQUENCY
             else DEFAULT_CONTROL_FREQUENCY
         )
 
@@ -259,4 +261,3 @@ class MujocoSimBridgeBase(ABC):
             for i in range(min(self._num_joints, self._model.nq)):
                 current_pos = float(self._data.qpos[i])
                 self._joint_position_targets[i] = current_pos
-

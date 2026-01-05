@@ -16,8 +16,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 import mujoco
 
@@ -41,10 +41,7 @@ def find_model_path(robot_name: str, num_joints: int | None = None) -> Path:
         FileNotFoundError: If the model file is not found
     """
     # Path: dimos/simulation/manipulators/mujoco_sim/ -> dimos/simulation/manipulators/data/
-    base_path = (
-        Path(__file__).parent.parent
-        / "data"
-    )
+    base_path = Path(__file__).parent.parent / "data"
 
     # Try DOF-based path first (for robots like xarm6, xarm7)
     if num_joints is not None:
@@ -104,4 +101,3 @@ def load_manipulator_model(
     data = mujoco.MjData(model)
 
     return model, data
-

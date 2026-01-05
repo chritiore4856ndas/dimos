@@ -15,9 +15,9 @@
 from __future__ import annotations
 
 import math
+from pathlib import Path
 import threading
 import time
-from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from dimos.simulation.manipulators.mujoco_sim import MujocoSimBridgeBase
@@ -139,9 +139,7 @@ class XArmSimBridge(MujocoSimBridgeBase):
                 # Efforts from actuators
                 if i < self._model.nu:  # no of actuators
                     self._joint_efforts[i] = float(
-                        self._data.qfrc_actuator[i]
-                        if i < len(self._data.qfrc_actuator)
-                        else 0.0
+                        self._data.qfrc_actuator[i] if i < len(self._data.qfrc_actuator) else 0.0
                     )
 
     # ------------------------------------------------------------------ #
@@ -339,7 +337,6 @@ class XArmSimBridge(MujocoSimBridgeBase):
     # ------------------------------------------------------------------ #
     # Joint state helpers
     # ------------------------------------------------------------------ #
-
 
     def _notify_report(self) -> None:
         callback = self._report_callback

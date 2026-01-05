@@ -28,9 +28,6 @@ from typing import TYPE_CHECKING
 from dimos.simulation.manipulators.mujoco_sim import MujocoSimBridgeBase
 from dimos.utils.logging_config import setup_logger
 
-if TYPE_CHECKING:
-    pass
-
 logger = setup_logger()
 
 # Unit conversion constants (matching piper_wrapper.py)
@@ -273,4 +270,3 @@ class PiperSimBridge(MujocoSimBridgeBase):
             Gripper position 0-100
         """
         return 0
-
