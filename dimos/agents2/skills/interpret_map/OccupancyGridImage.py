@@ -219,7 +219,9 @@ class OccupancyGridImage:
         rotation_matrix[1, 2] += (new_height - height) / 2
 
         # Apply rotation
-        rotated_image = cv2.warpAffine(image_arr, rotation_matrix, (new_width, new_height))
+        rotated_image = cv2.warpAffine(
+            image_arr, rotation_matrix, (new_width, new_height), borderValue=(127, 127, 127)
+        )
 
         return (
             rotated_image.astype(np.uint8),

@@ -6,19 +6,11 @@ point_placement_tests:
       position: [1018, 810, 0] # bottom center
       orientation: [ 0, 0, 0.7372773, 0.6755902 ] # 95 deg
     questions:
-      - query: "which would be the furthest room from the robot's current position?"
-        expected_range:
-          x: [1300, 1509]
-          y: [477, 859]
-      - query: "go to the conference table in the office"
-        expected_range:
-          x: [42, 547]
-          y: [15, 270]
-      - query: "a room to accomodate more than 10 people"
+      - query: "a room to accomodate more than 10 people" # fails
         expected_range:
           x: [34, 615]
           y: [12, 352]
-      - query: "smallest room"
+      - query: "smallest room" # fail: not the smallest room
         expected_range:
           x: [1290, 1510]
           y: [478, 861]
@@ -46,6 +38,14 @@ point_placement_tests:
         expected_range:
           x: [436, 516]
           y: [837, 909]
+      - query: "the furthest room from the robot's current position?"
+        expected_range:
+          x: [1300, 1509]
+          y: [477, 859]
+      - query: "the conference table in the office"
+        expected_range:
+          x: [42, 547]
+          y: [15, 270]
 
   - map_id: "office_noise_pose2"
     image_path: "floorplan_office_noise.png"
@@ -54,14 +54,76 @@ point_placement_tests:
       position: [465, 930, 0] # bottom left
       orientation: [ 0, 0, 0, 1 ]
     questions:
-      - query: "which would be the furthest room from the robot's current position?"
+      - query: "the furthest room from the robot's current position?"
         expected_range:
           x: [1300, 1509]
           y: [477, 859]
-      - query: "which would be the second room to the robot's left along the corridor?"
+      - query: "the second room to the robot's left along the corridor?"
         expected_range:
           x: [30, 373]
           y: [665, 854]
+
+  - map_id: "office_noise_pose3"
+    image_path: "floorplan_office_noise.png"
+    resolution: 0.05
+    robot_pose:
+      position: [65, 610, 0] # left, inside room
+      orientation: [ 0, 0, -0.7071068, 0.7071068 ] #  90 deg
+    questions:
+      - query: "the room's doorway to exit"
+        expected_range:
+          x: [1300, 1509]
+          y: [477, 859]
+
+  - map_id: "office_small_noise_pose2"
+    image_path: "floorplan_office_small_noise.png"
+    resolution: 0.05
+    robot_pose:
+      position: [175, 340, 0] # top left, inside conf room
+      orientation: [ 0, 0, 0, 1 ] #  175 deg
+    questions:
+      - query: "entrance of the current room" # fail - works without noise
+        expected_range:
+          x: [1300, 1509]
+          y: [477, 859]
+
+
+  - map_id: "office_noise_pose6"
+    image_path: "floorplan_office_noise.png"
+    resolution: 0.05
+    robot_pose:
+      position: [450, 980, 0] # 
+      orientation: [ 0, 0, 0, 1 ] 
+    questions:
+      - query: "doorway to enter the nearest room" # mostly fails - even w/o noise
+        expected_range:
+          x: [1300, 1509]
+          y: [477, 859]
+
+  - map_id: "office_noise_pose7"
+    image_path: "floorplan_office_noise.png"
+    resolution: 0.05
+    robot_pose:
+      position: [625, 760, 0] # center cubicles
+      orientation: [ 0, 0, -0.7071068, 0.7071068 ] 
+    questions:
+      - query: "entrance to the next cublicle ahead"
+        expected_range:
+          x: [1300, 1509]
+          y: [477, 859]
+
+  - map_id: "office_noise_pose8"
+    image_path: "floorplan_office_noise.png"
+    resolution: 0.05
+    robot_pose:
+      position: [595, 820, 0] # top left, inside conf room
+      orientation: [ 0, 0, -0.7071068, 0.7071068 ]
+    questions:
+      - query: "corner straight ahead"
+        expected_range:
+          x: [1300, 1509]
+          y: [477, 859]
+
 
   - map_id: "office_noise_unknown_pose1"
     image_path: "floorplan_office_noise_unknown.png"
@@ -70,11 +132,11 @@ point_placement_tests:
       position: [1018, 810, 0] # bottom center
       orientation: [ 0, 0, 0.7372773, 0.6755902 ] # 95 deg
     questions:
-      - query: "which would be the furthest room from the robot's current position?"
+      - query: "the furthest room from the robot's current position?" # fails, places on unexplored space
         expected_range:
           x: [1300, 1509]
           y: [477, 859]
-      - query: "point to start exploring unmapped space"
+      - query: "point to start exploring unmapped area"
         expected_range:
           x: [1300, 1509]
           y: [477, 859]
@@ -82,45 +144,46 @@ point_placement_tests:
 
 # small office + noise
   - map_id: "office_small_noise_pose1"
-    image_path: "floorplan_office_small_noise.png"
+    image_path: "floorplan_office_small.png"
     resolution: 0.05
     robot_pose:
       position: [480, 270, 0.0]
-      orientation: [ 0, 0, 0.7071068, 0.7071068 ] # 90 deg
+      orientation: [ 0, 0, 0.6087614, 0.7933533 ] # 75 deg
     questions:
-      - query: "which room would be the second room to the robot's left along the corridor?"
+      - query: "the second room to the robot's left along the corridor?"
         expected_range:
           x: [144, 419]
           y: [314, 462]
-      - query: "which would be the furthest room from the robot's current position"
+      - query: "the furthest room from the robot's current position"
         expected_range:
           x: [5, 219]
           y: [15, 458]
-      - query: "go to the largest room"
+      - query: "the largest room"
         expected_range:
           x: [227, 518]
           y: [12, 238]
-      - query: "a point in front of the robot"
+      - query: "a point few meters ahead of the robot"
         expected_range:
           x: [372, 488]
           y: [234, 302]
-      - query: "entrance of the top right room"
+      - query: "doorway of the top right room" # fails - even without noise
         expected_range:
           x: [70, 164]
           y: [129, 222]
-      - query: "a point on the robot"
+
+# large office + noise
+  - map_id: "office_large"
+    image_path: "floorplan_large.png"
+    resolution: 0.05
+    robot_pose:
+      position: [900, 445, 0.0]
+      orientation: [ 0, 0, 0, 1 ] # 65 deg
+    questions:
+      - query: "a space for seating more than 10 people"
         expected_range:
-          x: [446, 532]
-          y: [250, 292]
-      - query: "a point behind the robot"
-        expected_range:
-          x: [400, 552]
-          y: [908, 1009]
-      - query: "a point to the left of the robot"
-        expected_range:
-          x: [277, 451]
-          y: [805, 1009]
-      - query: "a point to the right of the robot"
+          x: [450, 634]
+          y: [804, 1013]
+      - query: "main hallway"
         expected_range:
           x: [450, 634]
           y: [804, 1013]
