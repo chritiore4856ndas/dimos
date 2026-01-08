@@ -43,6 +43,7 @@ from support.claude import run_claude_named_prompts
 
 DEFAULT_CONCURRENT_CLAUDE_REQUESTS = 5
 
+
 def _build_prompt(name: str, requirement: str) -> str:
     """
     Build the Claude prompt for a dependency.
@@ -90,6 +91,7 @@ async def _gather_prompts(dependencies: list[str]) -> tuple[list[tuple[str, str]
 
     return prompts, missing
 
+
 async def main(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true", help="List work without calling claude.")
@@ -103,10 +105,10 @@ async def main(argv: list[str]) -> None:
     await unconsolidate_deps()
     dependencies = await get_pip_deps_from_pyproject()
     prompts, missing = await _gather_prompts(dependencies)
-    tools_to_ask_about = [ each[0] for each in prompts ]
+    tools_to_ask_about = [each[0] for each in prompts]
     print("asking claude about:")
     for tool in tools_to_ask_about:
-        print("- "+tool)
+        print("- " + tool)
 
     list_only = args.dry_run or bool(args.extra)
     if list_only:

@@ -33,11 +33,11 @@ from .support.prompt_tools import cyan, green
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     epilog = textwrap.dedent(
         f"""
-        {green('Examples:')}
-          {cyan('dimos_installer --list-features')}
-          {cyan('dimos_installer --non-interactive --features sim,cuda')}
-          {cyan('dimos_installer --no-system-install --no-check')}
-          {cyan('dimos_installer --just-system-install')}
+        {green("Examples:")}
+          {cyan("dimos_installer --list-features")}
+          {cyan("dimos_installer --non-interactive --features sim,cuda")}
+          {cyan("dimos_installer --no-system-install --no-check")}
+          {cyan("dimos_installer --just-system-install")}
 
         """
     )
@@ -124,6 +124,7 @@ def main():
     phase3(selected_features)
     if not args.no_check:
         phase4()
+
 
 if __name__ == "__main__":
     main()

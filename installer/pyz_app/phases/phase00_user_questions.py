@@ -110,7 +110,8 @@ def phase0(cli_features: list[str] | None = None) -> tuple[dict[str, object], li
         optional = PROJECT_TOML["project"].get("optional-dependencies", {})
         features = [f for f in optional.keys() if f not in ["cpu"]]
         selected_features = p.pick_many(
-            "Which features do you want? (Pick any number of features)", options=["basics", *features]
+            "Which features do you want? (Pick any number of features)",
+            options=["basics", *features],
         )
         # basics is just a dummy entry to make it more user friendly
         selected_features = [each for each in selected_features if each != "basics"]

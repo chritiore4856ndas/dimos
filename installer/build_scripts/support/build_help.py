@@ -35,7 +35,7 @@ OUT_PATH = INSTALLER_DIR / "installer.pyz"
 BUILD_DIR = INSTALLER_DIR / ".build_pyz"
 APP_SRC = INSTALLER_DIR / "pyz_app"
 APP_DEST = BUILD_DIR / "app" / "pyz_app"
-REQUIREMENTS = APP_SRC /  "requirements.txt"
+REQUIREMENTS = APP_SRC / "requirements.txt"
 
 DISTRIBUTED_DEP_DB_DIR = INSTALLER_DIR / "dep_database.ignore"
 CONSOLIDATED_DEP_DB_DIR = APP_SRC / "bundled_files" / "pip_dependency_database.json"
@@ -51,6 +51,7 @@ cool_cache_settings.default_folder = "cache.ignore/"
 
 DEP_LIST_KEYS = ["apt_dependencies", "brew_dependencies", "nix_dependencies"]
 REQUIRED_KEYS = ["requirement", *DEP_LIST_KEYS]
+
 
 async def _run_cmd_async(*args: str, cwd: Path | None = None, inherit_io: bool = False) -> None:
     """Run a subprocess and raise on failure."""
@@ -81,9 +82,11 @@ def read_distributed_dep_json() -> dict:
             print(f"{name} had an error: {exc}", file=sys.stderr)
     return aggregated
 
+
 def read_consolidated_dep_json() -> dict:
     with open(CONSOLIDATED_DEP_DB_DIR) as in_file:
         return json.load(in_file)
+
 
 def consolidate_and_validate_distributed_deps() -> None:
     """Aggregate dep_database JSON and hardlink pyproject into bundled_files."""
@@ -144,6 +147,7 @@ async def call_build_pyz() -> None:
         "pyz_app.__main__:main",
         inherit_io=True,
     )
+
 
 async def unconsolidate_deps() -> None:
     """
@@ -214,7 +218,8 @@ def normalize_pip_requirement(requirement: str) -> str:
 @cache()
 def is_valid_brew_package_name(name: str) -> bool:
     res = subprocess.run(["brew", "info", name], capture_output=True)
-    return b'No available formula' not in res.stdout
+    return b"No available formula" not in res.stdout
+
 
 @cache()
 def is_valid_apt_package_name(name: str) -> bool:
@@ -226,6 +231,7 @@ def is_valid_apt_package_name(name: str) -> bool:
     )
     return not bool(res.returncode)
 
+
 @cache()
 def get_valid_nixpkgs_attr_name(name: str) -> str | None:
     if name.startswith("stdenv.cc"):
@@ -235,7 +241,9 @@ def get_valid_nixpkgs_attr_name(name: str) -> str | None:
         print("please install nix-search: https://github.com/peterldowns/nix-search-cli")
         return name
     if shutil.which("nvs") is None:
-        print("please install nvs:\n    nix profile install 'https://github.com/jeff-hykin/nix_version_search_cli/archive/50a3fef5c9826d1e08b360b7255808e53165e9b2.tar.gz#nvs'")
+        print(
+            "please install nvs:\n    nix profile install 'https://github.com/jeff-hykin/nix_version_search_cli/archive/50a3fef5c9826d1e08b360b7255808e53165e9b2.tar.gz#nvs'"
+        )
         return name
 
     # remove prefix
@@ -251,9 +259,9 @@ def get_valid_nixpkgs_attr_name(name: str) -> str | None:
     try:
         stdout = res.stdout
         if stdout.startswith("\nNo exact results, let me broaden the search...\n\n"):
-            stdout = stdout[len("\nNo exact results, let me broaden the search...\n\n"):]
+            stdout = stdout[len("\nNo exact results, let me broaden the search...\n\n") :]
         nvs_json_object = json.loads(stdout)
-    except Exception as error:
+    except Exception:
         # print(f"note: couldn't parse nvs output for {name}: {error}\nstdout:{stdout}\nstderr:{res.stderr}", file=sys.stderr)
         # this case should only happen if the name is not valid
         pass
@@ -263,15 +271,19 @@ def get_valid_nixpkgs_attr_name(name: str) -> str | None:
                 return each_value["attrPath"]
 
         # starts with name optionally ends with number-like thing
-        pattern = re.escape(name)+ r"[\.\-_@]?([0-9\.\-_]*)$"
-        prefixed_names = { key: value for key, value in nvs_json_object.items() if re.match(pattern, key.lower()) }
+        pattern = re.escape(name) + r"[\.\-_@]?([0-9\.\-_]*)$"
+        prefixed_names = {
+            key: value for key, value in nvs_json_object.items() if re.match(pattern, key.lower())
+        }
+
         def get_number(value):
             number = re.match(pattern, value["attrPath"])[1]
             if len(number) == 0:
                 return 0
-            all_digits = re.sub(r"\D","", number)
+            all_digits = re.sub(r"\D", "", number)
             # TODO: probably should do full version compare here
-            return int(re.sub(r"\D","", all_digits))
+            return int(re.sub(r"\D", "", all_digits))
+
         sorted_prefixed_names = sorted(prefixed_names.values(), key=get_number, reverse=True)
         for value in sorted_prefixed_names:
             return value["attrPath"]
@@ -285,11 +297,7 @@ def get_valid_nixpkgs_attr_name(name: str) -> str | None:
         text=True,
     )
     items = res.stdout.split("\n")
-    packages = [
-        json.loads(each)
-            for each in items
-                if each.strip() != ""
-    ]
+    packages = [json.loads(each) for each in items if each.strip() != ""]
     # if it matches an attrname, we are done (attrnames are unique)
     for each_pkg in packages:
         if each_pkg.get("package_attr_name").lower() == name:
@@ -297,7 +305,14 @@ def get_valid_nixpkgs_attr_name(name: str) -> str | None:
     # stuff like "python" matches python310, python311, "python3-minimal", etc
     # we use the heuristic of finding the shortest one with the highest version number
     # e.g. if "python3-minimal" "python310" "python310" we choose "python310"
-    pname_matches = sorted([ pkg for pkg in packages if pkg.get("package_pname","").lower() == name and pkg.get("package_attr_name") ], key=lambda x: x["package_attr_name"])
+    pname_matches = sorted(
+        [
+            pkg
+            for pkg in packages
+            if pkg.get("package_pname", "").lower() == name and pkg.get("package_attr_name")
+        ],
+        key=lambda x: x["package_attr_name"],
+    )
     # no such package
     if len(pname_matches) == 0:
         if "." in name:
@@ -308,25 +323,41 @@ def get_valid_nixpkgs_attr_name(name: str) -> str | None:
         name_no_lib_prefix = name[3:]
     name_no_lib_prefix = name_no_lib_prefix.lower()
     # prefer things that start with the name
-    sorted_by_name_prefix = sorted(pname_matches, key=lambda x: -2 if x["package_attr_name"].lower().startswith(name) else (-1 if x["package_attr_name"].lower().startswith(name_no_lib_prefix) else 0))
+    sorted_by_name_prefix = sorted(
+        pname_matches,
+        key=lambda x: -2
+        if x["package_attr_name"].lower().startswith(name)
+        else (-1 if x["package_attr_name"].lower().startswith(name_no_lib_prefix) else 0),
+    )
     shortest_match_len = len(sorted_by_name_prefix[0].get("package_attr_name"))
-    short_matches = [ each for each in pname_matches if len(each["package_attr_name"]) == shortest_match_len ]
-    return short_matches[-1]["package_attr_name"] # the last should be the largest number (its already sorted)
+    short_matches = [
+        each for each in pname_matches if len(each["package_attr_name"]) == shortest_match_len
+    ]
+    return short_matches[-1][
+        "package_attr_name"
+    ]  # the last should be the largest number (its already sorted)
+
 
 def validate_names_and_load(dep_db) -> dict:
     print()
-    print("NOTE: validation takes a while partly because its pinging endpoints.\n- Doing them in parallel will cause rate-limiting / ip ban\n- This function builds a cold storage cache so it should only be painfully slow the first time")
+    print(
+        "NOTE: validation takes a while partly because its pinging endpoints.\n- Doing them in parallel will cause rate-limiting / ip ban\n- This function builds a cold storage cache so it should only be painfully slow the first time"
+    )
     print()
 
     brew_removed = []
     if shutil.which("brew") is not None:
         print("validating brew packages")
         for name, each_pkg in dep_db.items():
-            print(f'- {name}                    ', end="\r")
+            print(f"- {name}                    ", end="\r")
             time.sleep(0.05)
-            if each_pkg.get("brew_dependencies",None) is not None:
+            if each_pkg.get("brew_dependencies", None) is not None:
                 start = set(each_pkg["brew_dependencies"])
-                each_pkg["brew_dependencies"] = [ each_dep for each_dep in each_pkg["brew_dependencies"] if is_valid_brew_package_name(each_dep) ]
+                each_pkg["brew_dependencies"] = [
+                    each_dep
+                    for each_dep in each_pkg["brew_dependencies"]
+                    if is_valid_brew_package_name(each_dep)
+                ]
                 end = set(each_pkg["brew_dependencies"])
                 brew_removed.extend(start - end)
 
@@ -334,8 +365,8 @@ def validate_names_and_load(dep_db) -> dict:
     if shutil.which("nix") is not None:
         print("validating nix packages")
         for name, each_pkg in dep_db.items():
-            print(f'- {name}                    ', end="\r")
-            if each_pkg.get("nix_dependencies",None) is not None:
+            print(f"- {name}                    ", end="\r")
+            if each_pkg.get("nix_dependencies", None) is not None:
                 start = set(each_pkg["nix_dependencies"])
                 new_list = []
                 for each in each_pkg["nix_dependencies"]:
@@ -350,10 +381,14 @@ def validate_names_and_load(dep_db) -> dict:
     if shutil.which("apt-cache") is not None:
         print("validating apt-cache packages")
         for name, each_pkg in dep_db.items():
-            print(f'- {name}                    ', end="\r")
-            if each_pkg.get("apt_dependencies",None) is not None:
+            print(f"- {name}                    ", end="\r")
+            if each_pkg.get("apt_dependencies", None) is not None:
                 start = set(each_pkg["apt_dependencies"])
-                each_pkg["apt_dependencies"] = [ each_dep for each_dep in each_pkg["apt_dependencies"] if is_valid_apt_package_name(each_dep) ]
+                each_pkg["apt_dependencies"] = [
+                    each_dep
+                    for each_dep in each_pkg["apt_dependencies"]
+                    if is_valid_apt_package_name(each_dep)
+                ]
                 end = set(each_pkg["apt_dependencies"])
                 apt_removed.extend(start - end)
 
