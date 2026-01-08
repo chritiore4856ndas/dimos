@@ -24,6 +24,7 @@ from pathlib import Path
 import shutil
 import sys
 from typing import TYPE_CHECKING
+from support.validate_names import validate_names_and_load
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -33,9 +34,9 @@ if TYPE_CHECKING:
 # mkdir -p "$BUILD/app"
 # python3 "build_pip_dependency_database.py" # generates pip_dependency_database.json
 # # Copy code in
-# rsync -a "$ROOT/pyz_app/" "$BUILD/app/pyz_app/"
+# rsync -a "$INSTALLER_DIR/pyz_app/" "$BUILD/app/pyz_app/"
 # # Install dependencies into the app directory
-# python3 -m pip install -r "$ROOT/requirements.txt" -t "$BUILD/app" >/dev/null
+# python3 -m pip install -r "$INSTALLER_DIR/requirements.txt" -t "$BUILD/app" >/dev/null
 # # Build the zipapp. main points to pyz_app.__main__:main
 # python3 -m zipapp "$BUILD/app" \
 #   -o "$OUT" \
@@ -43,16 +44,16 @@ if TYPE_CHECKING:
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-ROOT = SCRIPT_DIR.parent
-OUT_PATH = ROOT / "installer.pyz"
-BUILD_DIR = ROOT / ".build_pyz"
-APP_SRC = ROOT / "pyz_app"
+INSTALLER_DIR = SCRIPT_DIR.parent
+OUT_PATH = INSTALLER_DIR / "installer.pyz"
+BUILD_DIR = INSTALLER_DIR / ".build_pyz"
+APP_SRC = INSTALLER_DIR / "pyz_app"
 APP_DEST = BUILD_DIR / "app" / "pyz_app"
-REQUIREMENTS = ROOT / "requirements.txt"
+REQUIREMENTS = APP_SRC /  "requirements.txt"
 
-DEP_DIR = ROOT / "dep_database"
+DEP_DIR = INSTALLER_DIR / "dep_database"
 DEPENDENCY_OUT = APP_SRC / "bundled_files" / "pip_dependency_database.json"
-TOML_SOURCE = ROOT.parent / "pyproject.toml"
+TOML_SOURCE = INSTALLER_DIR.parent / "pyproject.toml"
 TOML_LINK = APP_SRC / "bundled_files" / "pyproject.toml"
 
 
@@ -91,6 +92,7 @@ def _aggregate_dep_database_files() -> None:
     aggregated = _read_dep_json(DEP_DIR)
     DEPENDENCY_OUT.parent.mkdir(parents=True, exist_ok=True)
     DEPENDENCY_OUT.write_text(json.dumps(aggregated, indent=2, sort_keys=True) + "\n")
+    aggregated = validate_names_and_load(DEPENDENCY_OUT)
 
     TOML_LINK.parent.mkdir(parents=True, exist_ok=True)
     try:

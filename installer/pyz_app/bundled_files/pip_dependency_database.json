@@ -163,7 +163,6 @@
       "pkg-config",
       "libffi",
       "openssl",
-      "stdenv.cc.cc.lib",
       "libjpeg",
       "libpng",
       "zlib",
@@ -278,15 +277,15 @@
       "glew",
       "glfw",
       "xorg.xorgserver",
-      "xorg.libX11",
-      "xorg.libXcursor",
+      "libx11",
+      "libxcursor",
       "xorg.libXi",
-      "xorg.libXrandr",
-      "xorg.libXinerama",
+      "libxrandr",
+      "libxinerama",
       "xorg.libxcb",
-      "xorg.libSM",
-      "xorg.libXext",
-      "xorg.libXrender",
+      "libsm",
+      "libxext",
+      "libxrender",
       "glib",
       "tbb",
       "openssl",
@@ -342,8 +341,7 @@
       "python3",
       "cmake",
       "ninja",
-      "pkg-config",
-      "stdenv.cc.cc.lib"
+      "pkg-config"
     ],
     "notes": "CTransformers provides Python bindings for Transformer models implemented in C/C++ using the GGML library. These system dependencies are needed for: (1) building the native C/C++ extension from source using CMake and scikit-build, (2) compiling GGML-based models with optimized CPU instructions (AVX2/AVX), and (3) linking to system libraries. Key dependencies include: python3-dev/python3 for Python headers, build-essential for C/C++ compilation tools (gcc, g++, make), cmake (>=3.18) for cross-platform build configuration, ninja-build/ninja for fast parallel builds (required by scikit-build), and pkg-config for library detection. The package uses scikit-build as its build backend which requires CMake and Ninja. While PyPI provides pre-built wheels for common platforms (x86_64 Linux/macOS/Windows with .so/.dll/.dylib libraries), building from source or using on ARM/other architectures requires these dependencies. Optional CUDA support requires nvidia-cuda-runtime-cu12 and nvidia-cublas-cu12 (specified via extras_require['cuda']), but those are Python packages, not system dependencies.",
     "package": "ctransformers==0.2.27"
@@ -378,7 +376,6 @@
       "ninja",
       "pkg-config",
       "gcc",
-      "stdenv.cc.cc.lib",
       "cudatoolkit",
       "cudnn"
     ],
@@ -401,8 +398,7 @@
     "description": "System dependencies required for cupy-cuda12x==13.6.0 pip package",
     "nix_dependencies": [
       "python3",
-      "gcc",
-      "stdenv.cc.cc.lib"
+      "gcc"
     ],
     "notes": "CuPy CUDA 12.x is distributed as a binary wheel package that includes CUDA Toolkit libraries (cuDNN, cuTENSOR, NCCL, cutensor) bundled within the package, so CUDA installation is not required as a system dependency. The dependencies listed are minimal runtime requirements. Key dependencies include: python3-dev/python3 for Python headers (needed for any native extensions), build-essential/gcc/g++ for C/C++ compilation (may be needed for custom CUDA kernel compilation at runtime), and libgomp1/libomp for OpenMP support used by CuPy's CPU fallback operations. On Linux (apt), libgomp1 provides the GNU OpenMP runtime. On macOS (brew), libomp provides LLVM's OpenMP runtime (note: CUDA is not supported on macOS since Apple dropped NVIDIA support, but CuPy can still be installed for development/testing with CPU fallback). On NixOS, stdenv.cc.cc.lib provides the C++ standard library. For most use cases with pre-built wheels, only the runtime libraries (libgomp1/libomp) are strictly necessary unless compiling custom kernels.",
     "package": "cupy-cuda12x==13.6.0"
@@ -429,8 +425,7 @@
       "openblas",
       "lapack",
       "gfortran",
-      "pkg-config",
-      "stdenv.cc.cc.lib"
+      "pkg-config"
     ],
     "notes": "Dask itself is a pure Python package for parallel computing, but dask[complete] includes many optional dependencies (numpy, pandas, scipy, scikit-learn, etc.) that require compilation and numerical computing libraries. The listed dependencies are needed for building/running these numerical computation packages. Key dependencies: python3-dev/python3 for Python headers, build-essential/gcc for C/C++ compilation, gfortran for Fortran code in BLAS/LAPACK, libopenblas-dev/openblas and liblapack-dev/lapack for optimized linear algebra routines, and pkg-config for library detection. For pre-built wheels (most common installation method), runtime requirements are minimal, but these build dependencies are included for systems that need to compile from source or for architectures without wheel support. The [complete] extra installs all optional dependencies for full Dask functionality including dataframe, array, bag, delayed, and distributed computing features.",
     "package": "dask[complete]==2025.5.1"
@@ -479,7 +474,6 @@
       "lcm",
       "openjdk",
       "pkg-config",
-      "stdenv.cc.cc.lib",
       "git"
     ],
     "notes": "dimos-lcm is a LCM-Foxglove bridge and message utilities package that requires the LCM (Lightweight Communications and Marshalling) library. Key dependencies include: LCM development libraries (liblcm-dev) for the core C/C++ libraries, LCM tools which provide lcm-gen for code generation and lcm-spy for message inspection, Java Development Kit (default-jdk) and Java Runtime Environment (default-jre) for building and running Java bindings including lcm-spy, Python development headers (python3-dev) for building Python bindings, and build-essential for general compilation tools. The package also depends on numpy, foxglove-websocket, and lcm Python packages which are installed via pip. Git is required as the package is typically installed from a GitHub repository. On macOS via Homebrew, the 'lcm' package provides both the library and tools, and 'openjdk' provides Java support. On NixOS, equivalent packages provide the same functionality with stdenv.cc.cc.lib for C standard library support.",
@@ -582,8 +576,7 @@
       "openblas",
       "lapack",
       "gfortran",
-      "pkg-config",
-      "stdenv.cc.cc.lib"
+      "pkg-config"
     ],
     "notes": "FilterPy is a Kalman filtering and optimal estimation library for Python. While filterpy itself is pure Python with no compiled code, it requires NumPy and SciPy as dependencies, which need system libraries for optimal performance. These system dependencies support: (1) NumPy and SciPy's compiled linear algebra routines, (2) runtime linking to optimized BLAS/LAPACK libraries for matrix operations used in Kalman filtering, and (3) building from source when pre-built wheels are unavailable. Key dependencies include: python3-dev/python3 for Python headers, build-essential/gcc for C/C++ compilation, gfortran for Fortran code in BLAS/LAPACK, libopenblas-dev/openblas and liblapack-dev/lapack for optimized linear algebra (critical for filter performance), and pkg-config for library detection. FilterPy's algorithms (Kalman filters, particle filters, etc.) are computationally intensive and benefit from optimized linear algebra libraries.",
     "package": "filterpy>=1.4.5"
@@ -604,8 +597,7 @@
     "nix_dependencies": [
       "python3",
       "openssl",
-      "libffi",
-      "stdenv.cc.cc.lib"
+      "libffi"
     ],
     "notes": "Flask is a lightweight WSGI web application framework. While Flask itself is pure Python, its core dependencies (Werkzeug, Jinja2, MarkupSafe, itsdangerous, click) may require compilation. System dependencies include: python3-dev/python3 for Python headers and pip installation, build-essential for C/C++ compilers needed by MarkupSafe (which compiles C extensions for faster template escaping), libssl-dev/openssl for cryptographic operations in itsdangerous (secure signing), and libffi-dev/libffi for potential native extensions in dependencies. Flask 2.2+ requires Python 3.7+. Most installations will use pre-built wheels, but these dependencies ensure compatibility when building from source or on platforms without wheel support.",
     "package": "Flask>=2.2"
@@ -740,10 +732,10 @@
       "libdrm",
       "dbus",
       "libxkbcommon",
-      "xorg.libXcomposite",
-      "xorg.libXdamage",
-      "xorg.libXfixes",
-      "xorg.libXrandr",
+      "libxcomposite",
+      "libxdamage",
+      "libxfixes",
+      "libxrandr",
       "mesa",
       "pango",
       "cairo",
@@ -773,8 +765,7 @@
       "python3",
       "openssl",
       "libffi",
-      "libyaml",
-      "stdenv.cc.cc.lib"
+      "libyaml"
     ],
     "notes": "LangChain is a framework for developing applications powered by language models. It's primarily pure Python but depends on packages with native extensions. System dependencies are needed for: (1) SSL/TLS support (libssl-dev/openssl) for secure HTTPS communication with LLM APIs, (2) FFI support (libffi-dev/libffi) for ctypes usage in various dependencies, (3) build tools (build-essential/stdenv.cc.cc.lib) for compiling native extensions in pydantic-core (Rust-based validation) and other dependencies, (4) YAML support (libyaml-dev/libyaml) for configuration parsing via pyyaml, and (5) ca-certificates for SSL certificate validation. The core dependencies include langchain-core (orchestration), langgraph (graph-based workflows), and pydantic (data validation with native Rust core). For runtime-only usage with pre-built wheels (the most common case), only python3, openssl/libssl, libyaml, and ca-certificates are strictly required. Additional system dependencies may be needed when using optional extras like embeddings (may need numpy/BLAS), document loaders (may need libxml2, libxslt), or vector stores.",
     "package": "langchain>=1,<2"
@@ -813,8 +804,7 @@
       "openblas",
       "lapack",
       "pkg-config",
-      "curl",
-      "stdenv.cc.cc.lib"
+      "curl"
     ],
     "notes": "langchain-chroma is a LangChain integration for ChromaDB, a vector database for AI applications. The main dependency is chromadb (>=1.3.5,<2.0.0), which uses onnxruntime for embedding models, grpcio for client-server communication, bcrypt for authentication, and numpy for numerical operations. Key requirements include: (1) build-essential/gcc/g++/cmake for compiling native extensions including chroma-hnswlib (HNSW library for vector similarity search) and onnxruntime components; (2) python3-dev for Python C extension headers; (3) libopenblas-dev/openblas and liblapack-dev/lapack for numpy numerical operations (inherited from numpy>=1.26.0 dependency); (4) pkg-config for build configuration; (5) curl for runtime operations; (6) libstdc++6/stdenv.cc.cc.lib for C++ runtime (required by onnxruntime); (7) libgomp1 for OpenMP parallel processing (used by onnxruntime); (8) ca-certificates for HTTPS connections to embedding model APIs. Pre-built wheels are available for common platforms (x86_64, aarch64 on Linux/macOS/Windows with Python 3.10+). Most users will get pre-built wheels and only need runtime libraries, but build dependencies support source compilation on systems without wheel support or for custom builds. ChromaDB can run in embedded mode (no server) or client-server mode.",
     "package": "langchain-chroma>=1,<2"
@@ -847,8 +837,7 @@
       "libyaml",
       "openssl",
       "libffi",
-      "pkg-config",
-      "stdenv.cc.cc.lib"
+      "pkg-config"
     ],
     "notes": "langchain-core is the core abstractions and base classes for the LangChain framework. Key system dependencies: (1) cargo/rustc/rust are required for building pydantic-core (Pydantic v2's Rust-based validation core), (2) libyaml-dev/libyaml for PyYAML C extensions, (3) build-essential/stdenv.cc.cc.lib for compiling C extensions, (4) libssl-dev/openssl and libffi-dev/libffi for cryptographic dependencies, (5) pkg-config for library detection during build. When installing from pre-built wheels on common platforms (x86_64 Linux/macOS with recent pip), only python3, openssl, and libyaml are strictly required at runtime, but the build dependencies ensure compatibility across all architectures and when building from source.",
     "package": "langchain-core>=1,<2"
@@ -881,8 +870,7 @@
       "openssl",
       "libffi",
       "libyaml",
-      "pkg-config",
-      "stdenv.cc.cc.lib"
+      "pkg-config"
     ],
     "notes": "langchain-huggingface provides HuggingFace integrations for LangChain, including embeddings and LLM wrappers. Key system dependencies: (1) cargo/rustc/rust are required for building the 'tokenizers' package (Rust-based fast tokenization library) and pydantic-core (via langchain-core dependency), (2) build-essential/stdenv.cc.cc.lib for compiling any C/C++ extensions, (3) libssl-dev/openssl and libffi-dev/libffi for cryptographic operations in huggingface-hub and other dependencies, (4) libyaml-dev/libyaml for PyYAML C extensions, (5) pkg-config for library detection during builds. Core dependencies include huggingface-hub (for model downloading), tokenizers (Rust-based tokenization), and langchain-core. When installing from pre-built wheels on common platforms (x86_64/aarch64 Linux/macOS with recent pip), only python3, openssl, and libyaml are strictly required at runtime, but the build dependencies ensure compatibility across all architectures and when building from source.",
     "package": "langchain-huggingface>=1,<2"
@@ -919,8 +907,7 @@
       "openssl",
       "libffi",
       "pkg-config",
-      "curl",
-      "stdenv.cc.cc.lib"
+      "curl"
     ],
     "notes": "langchain-ollama is a LangChain integration package for Ollama, providing wrappers for Ollama's local LLM models. It depends on langchain-core (>=1.0.0,<2.0.0) and ollama (>=0.6.0,<1.0.0). System dependencies are inherited primarily from langchain-core and include: (1) cargo/rustc/rust for building pydantic-core (Pydantic v2's Rust validation engine used by langchain-core), (2) libyaml-dev/libyaml for PyYAML C extensions, (3) build-essential/stdenv.cc.cc.lib for compiling native extensions, (4) libssl-dev/openssl and libffi-dev/libffi for HTTPS/TLS support (required by httpx for API communication), (5) pkg-config for library detection, (6) curl for downloading models and interacting with Ollama server, (7) ca-certificates for HTTPS certificate validation. Most users installing from PyPI on common platforms (x86_64 Linux/macOS) will get pre-built wheels and only need runtime dependencies (python3, openssl, libyaml, curl, ca-certificates), but build dependencies ensure compatibility when building from source or on platforms without pre-built wheels. Note: This package is just a client library - it requires a separately running Ollama server to function.",
     "package": "langchain-ollama>=1,<2"
@@ -942,8 +929,7 @@
     "nix_dependencies": [
       "python3",
       "openssl",
-      "libffi",
-      "stdenv.cc.cc.lib"
+      "libffi"
     ],
     "notes": "langchain-openai is a LangChain integration package that provides OpenAI model wrappers and utilities. It depends on the openai package and langchain-core, both of which are primarily pure Python with HTTP/HTTPS capabilities. System dependencies are needed for: SSL/TLS support (libssl-dev/openssl) for secure API communication with OpenAI services, FFI support (libffi-dev/libffi) for ctypes usage in dependencies, build tools (build-essential/stdenv.cc.cc.lib) for compiling native extensions in dependencies like pydantic-core and jiter (fast JSON parser), and ca-certificates for HTTPS certificate validation. Most users installing from PyPI will get pre-built wheels and only need runtime dependencies (python3, openssl libraries, ca-certificates), but build tools are required when compiling from source or on platforms without pre-built wheels.",
     "package": "langchain-openai>=1,<2"
@@ -975,8 +961,7 @@
     ],
     "description": "System dependencies required for lap>=0.5.12 pip package",
     "nix_dependencies": [
-      "python3",
-      "stdenv.cc.cc.lib"
+      "python3"
     ],
     "notes": "lap (Linear Assignment Problem solver) is a Python package that implements the Jonker-Volgenant algorithm for solving linear assignment problems using LAPJV and LAPMOD algorithms. The package is implemented in C++ and uses Cython to create Python bindings. While PyPI provides pre-built wheels for Windows (AMD64/ARM64), Linux (x86_64/aarch64), and macOS (x86_64/arm64) for Python 3.7-3.13, these system dependencies are needed for: (1) building from source when pre-built wheels are unavailable for your platform/Python version, (2) compiling the Cython extensions that wrap the C++ implementation. Key dependencies include: python3-dev/python3 for Python headers needed by Cython, build-essential/g++ for C++ compilation (the core algorithms are implemented in C++), and cython3 for transpiling .pyx files to C++ code. The package requires numpy>=1.21.6 as a Python dependency. Version 0.5.12 supports both numpy 1.x and 2.x for Python 3.8-3.13. Most users with compatible platforms will use pre-built wheels and won't need build dependencies, but they ensure compatibility across all platforms.",
     "package": "lap>=0.5.12"
@@ -1014,8 +999,7 @@
       "libedit",
       "libxml2",
       "zlib",
-      "pkg-config",
-      "stdenv.cc.cc.lib"
+      "pkg-config"
     ],
     "notes": "llvmlite is a lightweight LLVM Python binding for writing JIT compilers. It's a core dependency of Numba and other JIT compilation frameworks. Version 0.42.0 supports LLVM 11-14, with LLVM 14 recommended for best compatibility and performance. System dependencies are needed for: (1) building from source when pre-built wheels are unavailable for your platform/architecture, (2) runtime linking to LLVM libraries for IR generation and compilation, and (3) compiling the C++ binding layer. Key dependencies include: python3-dev/python3 for Python headers, build-essential for C/C++ compilation tools (gcc, g++, make), llvm-14-dev/llvm@14/llvm_14 for LLVM development libraries and headers, libedit-dev/libedit for command-line editing support (required by LLVM), libxml2-dev/libxml2 for XML parsing (required by LLVM), zlib1g-dev/zlib for compression support (required by LLVM), and pkg-config for library detection during build. While PyPI provides pre-built wheels for common platforms (x86_64 Linux/macOS/Windows), ARM architectures and some Linux distributions may require building from source, making these system dependencies essential.",
     "package": "llvmlite>=0.42.0"
@@ -1102,7 +1086,7 @@
       "zlib",
       "qhull",
       "fontconfig",
-      "libXft",
+      "libxft",
       "tcl",
       "tk",
       "gtk3",
@@ -1110,10 +1094,10 @@
       "gobject-introspection",
       "opencv4",
       "glib",
-      "xorg.libSM",
-      "xorg.libXext",
-      "xorg.libXrender",
-      "xorg.libX11",
+      "libsm",
+      "libxext",
+      "libxrender",
+      "libx11",
       "gstreamer",
       "gst-plugins-base",
       "ffmpeg"
@@ -1177,11 +1161,11 @@
       "libjpeg",
       "qhull",
       "fontconfig",
-      "libXft",
+      "libxft",
       "xorg.libxcb",
-      "xorg.libXrender",
-      "xorg.libXext",
-      "xorg.libX11",
+      "libxrender",
+      "libxext",
+      "libx11",
       "tk",
       "tcl",
       "gtk3",
@@ -1245,9 +1229,9 @@
       "ninja",
       "opencv4",
       "glib",
-      "xorg.libSM",
-      "xorg.libXext",
-      "xorg.libXrender",
+      "libsm",
+      "libxext",
+      "libxrender",
       "llvmPackages.openmp",
       "gstreamer",
       "gst-plugins-base",
@@ -1343,11 +1327,11 @@
     "brew_dependencies": [],
     "description": "System dependencies required for mss (Multiple Screen Shots) pip package",
     "nix_dependencies": [
-      "xorg.libX11",
-      "xorg.libXext",
-      "xorg.libXrandr",
-      "xorg.libXinerama",
-      "xorg.libXfixes"
+      "libx11",
+      "libxext",
+      "libxrandr",
+      "libxinerama",
+      "libxfixes"
     ],
     "notes": "mss is a pure Python library for cross-platform screenshot capture. On Linux, it uses the X11 protocol to capture screens, requiring X11 libraries (libx11-6, libxext6, libxrandr2, libxinerama1, libxfixes3) for system-level screen capture capabilities. On macOS, mss uses native Core Graphics framework (part of the OS) so no additional Homebrew dependencies are needed. On NixOS, the X11 libraries from xorg packages are required for Linux systems. For Wayland systems, additional dependencies may be required. The package works with pre-built wheels on most systems, but these dependencies ensure proper runtime functionality for screen capture operations.",
     "package": "mss"
@@ -1424,8 +1408,7 @@
       "libedit",
       "libxml2",
       "zlib",
-      "pkg-config",
-      "stdenv.cc.cc.lib"
+      "pkg-config"
     ],
     "notes": "Numba is a JIT (Just-In-Time) compiler for Python that translates Python and NumPy code to optimized machine code at runtime using LLVM compiler infrastructure. While PyPI provides pre-built wheels with bundled LLVM for most platforms, these system dependencies are needed for: (1) building numba from source when wheels are unavailable or for development, (2) building llvmlite (numba's LLVM binding dependency) from source, and (3) ensuring compatibility with system libraries. Key dependencies include: python3-dev/python3 for Python headers, build-essential/gcc/g++ for C/C++ compilation infrastructure, llvm-14/llvm@14/llvm_14 for the LLVM compiler framework (numba 0.60.0+ requires LLVM 11-14, with 14 being well-supported and recommended), llvm-14-dev for LLVM development headers and libraries needed when building llvmlite from source, libedit-dev/libedit for command line editing library used by LLVM, libxml2-dev/libxml2 for XML parsing support required by LLVM, zlib1g-dev/zlib for compression library needed by LLVM, and pkg-config for library detection during builds. Most users installing from pre-built wheels will not need the -dev packages as both LLVM and llvmlite are bundled in the wheels, but having system LLVM ensures compatibility and allows building numba extensions or contributing to numba development. Numba's performance benefits come from compiling Python loops and NumPy operations to native machine code using LLVM's optimization passes, making it essential for high-performance numerical computing and scientific applications.",
     "package": "numba>=0.60.0"
@@ -1452,8 +1435,7 @@
       "openblas",
       "lapack",
       "gfortran",
-      "pkg-config",
-      "stdenv.cc.cc.lib"
+      "pkg-config"
     ],
     "notes": "NumPy is the fundamental package for scientific computing in Python. While PyPI provides pre-built wheels for many platforms, these system dependencies are needed for: (1) building from source when wheels are unavailable, (2) runtime linking to optimized BLAS/LAPACK libraries for linear algebra performance, and (3) compiling native extensions. Key dependencies include: python3-dev/python3 for Python headers, build-essential/gcc for C/C++ compilation, gfortran for Fortran code in BLAS/LAPACK, libopenblas-dev/openblas and liblapack-dev/lapack for optimized linear algebra routines (BLAS provides basic linear algebra, LAPACK provides advanced routines), and pkg-config for library detection during build. NumPy 1.26.4+ requires these for optimal performance even with pre-built wheels, as it may dynamically link to system BLAS libraries.",
     "package": "numpy>=1.26.4"
@@ -1477,8 +1459,6 @@
     ],
     "description": "System dependencies required for nvidia-nvimgcodec-cu12[all] pip package",
     "nix_dependencies": [
-      "gcc-unwrapped.lib",
-      "stdenv.cc.cc.lib",
       "glibc",
       "libjpeg",
       "libpng",
@@ -1505,8 +1485,7 @@
     "nix_dependencies": [
       "python3",
       "openssl",
-      "libffi",
-      "stdenv.cc.cc.lib"
+      "libffi"
     ],
     "notes": "The ollama package is the official Python client for Ollama. It's a pure Python HTTP client library that depends on httpx and pydantic. System dependencies are needed for: SSL/TLS support (libssl-dev/openssl) for secure HTTPS communication with Ollama API endpoints, FFI support (libffi-dev/libffi) for potential ctypes usage, and build tools (build-essential/gcc) for compiling C extensions in dependencies like pydantic-core and jiter (fast JSON parser). The ca-certificates package ensures proper SSL certificate validation. For runtime-only usage with pre-built wheels (the most common case), only python3, openssl/libssl, and ca-certificates are strictly required. Note: This package is just the Python client library - it does NOT include the Ollama server itself. To run local models, you need to separately install the Ollama application (via 'brew install ollama' on macOS or from ollama.ai on other platforms).",
     "package": "ollama>=0.6.0"
@@ -1532,8 +1511,7 @@
       "python3",
       "cmake",
       "protobuf",
-      "pkg-config",
-      "stdenv.cc.cc.lib"
+      "pkg-config"
     ],
     "notes": "ONNX (Open Neural Network Exchange) is a C++ based library with Python bindings that uses Protocol Buffers for model serialization. build-essential provides g++ and compilation tools needed for building C++ extensions. cmake (>=3.18) is required for the build system. libprotobuf-dev and protobuf-compiler are needed for Protocol Buffers support which ONNX uses extensively for its model format. python3-dev provides Python header files for building the extension modules. While pre-built wheels are available for common platforms (x86_64, ARM64), these dependencies are essential for building from source or on systems without wheel support.",
     "package": "onnx"
@@ -1550,8 +1528,6 @@
     ],
     "description": "System dependencies required for onnxruntime pip package",
     "nix_dependencies": [
-      "gcc-unwrapped.lib",
-      "stdenv.cc.cc.lib",
       "glibc"
     ],
     "notes": "ONNX Runtime is distributed as pre-built wheels for most platforms and has minimal system dependencies. On Linux (apt): libgomp1 provides OpenMP support for parallel execution, libstdc++6 and libc6 are standard C++ and C libraries typically already present. On macOS (brew): libomp provides OpenMP runtime and gcc provides libgomp compatibility. On NixOS (nix): gcc-unwrapped.lib provides libgomp, stdenv.cc.cc.lib provides C++ standard library, and glibc provides standard C library functions. The Python wheel includes most dependencies statically linked, making it relatively self-contained. For GPU support (onnxruntime-gpu), additional CUDA/cuDNN libraries are required but those are handled separately.",
@@ -1576,8 +1552,6 @@
     ],
     "description": "System dependencies required for onnxruntime-gpu>=1.17.1 pip package",
     "nix_dependencies": [
-      "gcc-unwrapped.lib",
-      "stdenv.cc.cc.lib",
       "glibc",
       "cudaPackages.cudatoolkit",
       "cudaPackages.cudnn"
@@ -1636,11 +1610,11 @@
     "description": "System dependencies required for open3d pip package",
     "nix_dependencies": [
       "xorg.xorgserver",
-      "xorg.libX11",
-      "xorg.libXcursor",
+      "libx11",
+      "libxcursor",
       "xorg.libXi",
-      "xorg.libXrandr",
-      "xorg.libXinerama",
+      "libxrandr",
+      "libxinerama",
       "xorg.libxcb",
       "libGL",
       "libGLU",
@@ -1715,7 +1689,6 @@
       "pkg-config",
       "libffi",
       "openssl",
-      "stdenv.cc.cc.lib",
       "libjpeg",
       "libpng",
       "zlib",
@@ -1748,8 +1721,7 @@
     "nix_dependencies": [
       "python3",
       "openssl",
-      "libffi",
-      "stdenv.cc.cc.lib"
+      "libffi"
     ],
     "notes": "The openai package is primarily pure Python with HTTP/HTTPS capabilities. Core dependencies include SSL/TLS support for secure API communication and build tools for compiling optional native extensions in dependencies like pydantic and jiter. On apt systems: python3-dev and build-essential provide build tools, libssl-dev and libffi-dev enable cryptographic operations, ca-certificates ensures HTTPS validation. On brew/nix: python3, openssl, and libffi provide equivalent functionality. Additional packages may be needed for optional extras: portaudio for voice-helpers (sounddevice), numpy for datalib/voice features.",
     "package": "openai"
@@ -1827,9 +1799,9 @@
     "nix_dependencies": [
       "opencv4",
       "glib",
-      "xorg.libSM",
-      "xorg.libXext",
-      "xorg.libXrender",
+      "libsm",
+      "libxext",
+      "libxrender",
       "gstreamer",
       "gst-plugins-base",
       "ffmpeg",
@@ -1878,9 +1850,9 @@
     "nix_dependencies": [
       "opencv4",
       "glib",
-      "xorg.libSM",
-      "xorg.libXext",
-      "xorg.libXrender",
+      "libsm",
+      "libxext",
+      "libxrender",
       "gstreamer",
       "gst-plugins-base",
       "ffmpeg"
@@ -1907,8 +1879,7 @@
       "python3",
       "openblas",
       "lapack",
-      "pkg-config",
-      "stdenv.cc.cc.lib"
+      "pkg-config"
     ],
     "notes": "Pandas is a powerful data analysis and manipulation library for Python, built on top of NumPy. It provides high-performance, easy-to-use data structures (DataFrame, Series) and data analysis tools. While pandas is largely pure Python with Cython extensions, system dependencies are needed for: (1) building from source when pre-built wheels are unavailable, (2) compiling Cython extensions for performance-critical operations, and (3) satisfying NumPy's runtime dependencies since NumPy is a core requirement. Key dependencies include: python3-dev/python3 for Python headers needed to build C extensions, build-essential for C/C++ compilation tools (gcc, make, etc.), libopenblas-dev/openblas and liblapack-dev/lapack for NumPy's optimized linear algebra operations (pandas inherits NumPy's numerical computing requirements), and pkg-config for library detection during build. Pandas 1.5.2+ ships with pre-built wheels for most platforms, but these system dependencies ensure compatibility for source builds and optimal NumPy performance.",
     "package": "pandas>=1.5.2"
@@ -2036,7 +2007,6 @@
       "blas",
       "gfortran",
       "pkg-config",
-      "stdenv.cc.cc.lib",
       "libGL",
       "libGLU",
       "glew",
@@ -2114,7 +2084,7 @@
     "description": "System dependencies required for pycryptodome pip package",
     "nix_dependencies": [
       "python3",
-      "stdenv.cc"
+      "cc"
     ],
     "notes": "pycryptodome is a self-contained cryptographic library for Python that provides low-level cryptographic primitives. The pip package typically includes pre-built wheels for common platforms, so most users won't need to build from source. However, when building from source (e.g., on unsupported platforms or when wheels are unavailable), minimal build dependencies are required: python3-dev/python3 for Python headers and development files, and build-essential/stdenv.cc for C compiler and build tools (gcc/clang, make). Unlike libraries that depend on OpenSSL or other external crypto libraries, pycryptodome includes its own implementations of cryptographic algorithms in C, making it self-contained with no runtime dependencies beyond the Python interpreter. The library supports AES, DES, RSA, DSA, ECDSA, SHA, and other cryptographic primitives without requiring system crypto libraries.",
     "package": "pycryptodome"
@@ -2257,12 +2227,12 @@
       "glfw",
       "freeglut",
       "freetype",
-      "xorg.libX11",
-      "xorg.libXrandr",
+      "libx11",
+      "libxrandr",
       "xorg.libXi",
-      "xorg.libXinerama",
-      "xorg.libXcursor",
-      "xorg.libXxf86vm",
+      "libxinerama",
+      "libxcursor",
+      "libxxf86vm",
       "xvfb-run"
     ],
     "notes": "Pyrender is a Python library for physically-based rendering (PBR) compliant with the glTF 2.0 standard, built on top of OpenGL. The package requires OpenGL libraries for 3D rendering support. Key dependencies include: OpenGL/Mesa libraries (libgl1-mesa-glx, libgl1-mesa-dev, libglu1-mesa-dev, libegl1-mesa-dev, libgles2-mesa-dev) for GPU-accelerated rendering, OSMesa (libosmesa6-dev) for headless/off-screen rendering without a display server which is essential for Docker containers or SSH sessions, GLEW (libglew-dev) for OpenGL extension loading, FreeGLUT (freeglut3-dev) for OpenGL utility toolkit, GLFW (libglfw3, libglfw3-dev) for modern OpenGL context creation and window handling, FreeType (libfreetype6-dev, libfreetype6) for font rendering used by freetype-py dependency, X11 libraries (libx11-dev, libxrandr-dev, libxi-dev, libxinerama-dev, libxcursor-dev, libxxf86vm-dev) for windowing and display on Linux, Xvfb (xvfb) for virtual framebuffer allowing headless rendering in environments without a display, and Python development headers (python3-dev). Pyrender depends on PyOpenGL==3.1.0, pyglet>=1.4.10, and other Python packages (trimesh, numpy, Pillow, scipy, networkx, imageio, freetype-py). On macOS via Homebrew and NixOS, equivalent packages provide the same functionality. Common use cases include robotics simulation, 3D mesh rendering, and computer vision applications requiring physically-based rendering.",
@@ -2352,8 +2322,7 @@
       "assimp",
       "python3",
       "cmake",
-      "pkg-config",
-      "stdenv.cc.cc.lib"
+      "pkg-config"
     ],
     "notes": "python-fcl is a Python binding for the Flexible Collision Library (FCL), used for performing collision detection and proximity queries. Key dependencies include: libfcl-dev/fcl (the core FCL library for collision detection and distance computation), liboctomap-dev/octomap (for octree-based 3D occupancy mapping used by FCL for efficient spatial queries), libeigen3-dev/eigen (C++ template library for linear algebra operations used throughout FCL), libccd-dev/libccd (library implementing GJK-based continuous collision detection algorithm), libassimp-dev/assimp (for loading various 3D model formats as collision meshes), python3-dev/python3 (Python headers for building C++ extensions), build-essential/stdenv.cc.cc.lib (C++ compiler and build tools), cmake (build system used by FCL and python-fcl), and pkg-config (for library detection during compilation). Note that python-fcl typically needs to be built from source, so all build dependencies are essential for installation.",
     "package": "python-fcl>=0.7.0.4"
@@ -2458,9 +2427,7 @@
       "spatialindex"
     ],
     "description": "System dependencies required for rtree pip package",
-    "nix_dependencies": [
-      "spatialindex"
-    ],
+    "nix_dependencies": [],
     "notes": "rtree is a ctypes Python wrapper for libspatialindex that provides advanced spatial indexing features for spatial data structures. The package requires the libspatialindex C library to be installed on the system. On Debian/Ubuntu systems, both the development package (libspatialindex-dev) and runtime library (libspatialindex6) are needed. On macOS via Homebrew and NixOS, the spatialindex package provides the necessary library. The rtree package uses ctypes to dynamically load the spatialindex shared library at runtime.",
     "package": "rtree"
   },
@@ -2507,7 +2474,6 @@
       "lapack",
       "gfortran",
       "pkg-config",
-      "stdenv.cc.cc.lib",
       "llvmPackages.openmp"
     ],
     "notes": "Scikit-learn is a machine learning library built on NumPy, SciPy, and joblib. While PyPI provides pre-built wheels for most platforms, these system dependencies are needed for: (1) building from source when wheels are unavailable, (2) runtime linking to optimized BLAS/LAPACK libraries for numerical computations, and (3) compiling Cython extensions. Key dependencies include: python3-dev/python3 for Python headers, build-essential/gcc/g++ for C/C++ compilation, gfortran for Fortran code in BLAS/LAPACK libraries, libopenblas-dev/openblas and liblapack-dev/lapack for optimized linear algebra operations (critical for performance of algorithms like SVD, matrix decompositions), pkg-config for library detection, and libomp-dev/libomp/llvmPackages.openmp for OpenMP parallelization support (scikit-learn uses OpenMP for parallel execution of many algorithms). The LLVM toolchain (llvm on brew) provides additional optimization capabilities on macOS. cython3 is included on apt for building optimized extensions. Most users with pre-built wheels only need the runtime libraries, but build dependencies ensure compatibility across all platforms and Python versions.",
@@ -2540,8 +2506,7 @@
       "lapack",
       "blas",
       "gfortran",
-      "pkg-config",
-      "stdenv.cc.cc.lib"
+      "pkg-config"
     ],
     "notes": "SciPy is a fundamental library for scientific computing in Python, built on top of NumPy. It provides algorithms for optimization, integration, interpolation, eigenvalue problems, algebraic equations, differential equations, statistics, and many other classes of problems. System dependencies are needed for: (1) building from source when pre-built wheels are unavailable, (2) runtime linking to optimized BLAS/LAPACK libraries for high-performance linear algebra operations, and (3) compiling native Fortran and C/C++ extensions. Key dependencies include: python3-dev/python3 for Python headers, build-essential (gcc, g++, make) for C/C++ compilation, gfortran for compiling Fortran code (SciPy includes significant Fortran codebase), libopenblas-dev/openblas and liblapack-dev/lapack for optimized linear algebra routines, libblas-dev/blas for basic linear algebra operations, libatlas-base-dev for ATLAS (Automatically Tuned Linear Algebra Software) as an alternative BLAS implementation, and pkg-config for library detection. SciPy 1.15.1+ requires these dependencies for optimal performance, and may dynamically link to system BLAS/LAPACK libraries even when installed from pre-built wheels.",
     "package": "scipy>=1.15.1"
@@ -2589,7 +2554,6 @@
       "gfortran",
       "openblas",
       "lapack",
-      "stdenv.cc.cc.lib",
       "git"
     ],
     "notes": "sentence_transformers is built on PyTorch and Transformers libraries for computing sentence/text embeddings. Key system dependencies: (1) cargo/rustc/rust are required for building the 'tokenizers' package (Rust-based fast tokenization library used by transformers), (2) build-essential/gcc provides compilers for C/C++ extensions in PyTorch, NumPy, and other numerical packages, (3) gfortran, libopenblas-dev/openblas, and liblapack-dev/lapack are needed for BLAS/LAPACK linear algebra operations (critical for tensor operations in PyTorch and NumPy), (4) libgomp1/libomp provides OpenMP runtime for parallel processing in PyTorch, (5) libssl-dev/openssl and libffi-dev/libffi for cryptographic operations in huggingface-hub and other dependencies, (6) libyaml-dev/libyaml for PyYAML C extensions, (7) pkg-config for library detection during builds, (8) git for downloading models from HuggingFace Hub, and (9) python3-dev/python3 for Python headers and runtime. The package depends on transformers, torch, torchvision, numpy, scikit-learn, scipy, nltk, and sentencepiece. When installing from pre-built wheels on common platforms (x86_64/aarch64 Linux/macOS with recent pip), only python3, git, and OpenMP libraries (libgomp1/libomp) are strictly required at runtime, but the build dependencies ensure compatibility across all architectures and when building from source.",
@@ -2661,8 +2625,7 @@
     ],
     "description": "System dependencies required for tensorboard==2.20.0 pip package",
     "nix_dependencies": [
-      "python3",
-      "stdenv.cc.cc.lib"
+      "python3"
     ],
     "notes": "TensorBoard is TensorFlow's visualization toolkit for machine learning experimentation. It provides a web-based interface for visualizing metrics, model graphs, histograms, and other outputs. TensorBoard 2.20.0 has several key dependencies: grpcio (gRPC framework for the data server), protobuf (protocol buffers for data serialization), numpy (numeric operations), pillow (image handling), markdown (rendering text), werkzeug (WSGI utilities), and tensorboard-data-server (Rust-based data backend). While TensorBoard itself is primarily pure Python, grpcio may require compilation on some platforms. Modern installations typically use pre-built wheels for all dependencies on x86_64 and ARM64 architectures, making system dependencies minimal. The listed dependencies ensure compatibility when: (1) pre-built wheels are unavailable for the platform, (2) building from source is required, or (3) dependencies need to be compiled. python3-dev/python3 provides Python headers, build-essential provides C/C++ compilation tools (gcc, g++, make) needed by grpcio if building from source, and python3-pip handles package installation. On most modern systems with wheel support, only Python 3.8+ is required.",
     "package": "tensorboard==2.20.0"
@@ -2770,7 +2733,6 @@
       "lapack",
       "gfortran",
       "pkg-config",
-      "stdenv.cc.cc.lib",
       "libjpeg",
       "zlib",
       "libpng"
@@ -2823,9 +2785,9 @@
       "python3",
       "gfortran",
       "glib",
-      "xorg.libSM",
-      "xorg.libXext",
-      "xorg.libXrender",
+      "libsm",
+      "libxext",
+      "libxrender",
       "libjpeg",
       "libpng",
       "libtiff",
@@ -2834,7 +2796,6 @@
       "openblas",
       "lapack",
       "pkg-config",
-      "stdenv.cc.cc.lib",
       "git"
     ],
     "notes": "Torchreid (Torch Re-Identification) is a PyTorch-based deep learning library for person re-identification in computer vision. It depends on PyTorch, torchvision, and various image processing libraries. The OpenGL libraries (libgl1-mesa-glx, libglib2.0-0, libsm6, libxext6, libxrender-dev) are required for GUI and visualization features. Image codec libraries (libjpeg-dev/jpeg, libpng-dev/libpng, libtiff-dev/libtiff) support various image formats. Video codec libraries (libavcodec-dev, libavformat-dev, libswscale-dev, libv4l-dev, libxvidcore-dev, libx264-dev via ffmpeg on macOS/Nix) enable video processing capabilities. Math libraries (libatlas-base-dev/openblas, gfortran, libgfortran5, libgomp1/gcc) provide optimized numerical operations for PyTorch. Build tools (build-essential/gcc, python3-dev/python3) are needed for compiling extensions and dependencies. Git is required for downloading pre-trained models and datasets from repositories.",
@@ -2882,8 +2843,7 @@
       "gfortran",
       "pkg-config",
       "libffi",
-      "openssl",
-      "stdenv.cc.cc.lib"
+      "openssl"
     ],
     "notes": "The transformers library with torch backend requires PyTorch and its dependencies. Core dependencies include: build-essential (gcc, g++, make for compiling native extensions), git (for downloading models from HuggingFace Hub), libgomp1 (OpenMP runtime for parallel processing, provided by gcc on macOS/Nix), libopenblas-dev and liblapack-dev (BLAS/LAPACK for numerical operations in PyTorch), gfortran (Fortran compiler for scientific libraries), pkg-config (for library configuration), python3-dev (Python headers for building C extensions), libffi-dev (foreign function interface library), and libssl-dev (SSL/TLS support for secure downloads). For GPU support, additional CUDA dependencies would be needed (nvidia-cuda-toolkit, libcudnn8, etc.). Most users installing from pre-built wheels only need python3, python3-pip, git, and libgomp1 at runtime, but build dependencies are included for systems requiring source compilation.",
     "package": "transformers[torch]==4.49.0"
@@ -2904,7 +2864,6 @@
     "description": "System dependencies required for trimesh>=3.22.0 pip package",
     "nix_dependencies": [
       "python3",
-      "spatialindex",
       "geos"
     ],
     "notes": "Trimesh is a pure Python library for loading and using triangular meshes with an emphasis on watertight surfaces. The core library has minimal system dependencies as it's primarily Python-based, but certain optional features require system libraries: (1) libspatialindex-dev/spatialindex for spatial indexing and efficient spatial queries (used by rtree, an optional trimesh dependency for fast spatial lookups and nearest-neighbor queries), (2) libgeos-dev/geos (and libgeos++-dev on apt) for geometric operations and computational geometry (used by shapely for advanced 2D geometry operations, polygon operations, and mesh processing). The python3-dev and build-essential packages on apt systems are needed for compiling any C extensions in trimesh's dependencies if pre-built wheels are unavailable. Trimesh has many optional dependencies for different file formats and features (e.g., pyglet for 3D preview, pillow for textures, networkx for graph operations), but these are Python packages installable via pip. The system dependencies listed here cover the most commonly used optional features that require native libraries for optimal performance.",
@@ -3062,9 +3021,9 @@
       "python3",
       "opencv4",
       "glib",
-      "xorg.libSM",
-      "xorg.libXext",
-      "xorg.libXrender",
+      "libsm",
+      "libxext",
+      "libxrender",
       "gstreamer",
       "gst-plugins-base",
       "ffmpeg",
@@ -3076,8 +3035,7 @@
       "pkg-config",
       "git",
       "wget",
-      "curl",
-      "stdenv.cc.cc.lib"
+      "curl"
     ],
     "notes": "Ultralytics is the official YOLO (You Only Look Once) framework for object detection, instance segmentation, pose estimation, and image classification. Version 8.3.70+ includes YOLOv8 and YOLOv11 models. Key system dependencies include: (1) OpenCV libraries (libopencv-dev, opencv) for computer vision operations, image processing, and video I/O, (2) OpenGL and X11 libraries (libgl1-mesa-glx, libsm6, libxext6, libxrender-dev) for GUI display and rendering, (3) GStreamer and FFmpeg (libgstreamer*, libavcodec-dev, libavformat-dev, libswscale-dev, ffmpeg) for video codec support and media streaming, (4) Image format libraries (libjpeg-dev, libpng-dev, libtiff-dev, libwebp-dev) for various image format support, (5) FreeType (libfreetype6-dev, freetype) for text rendering in visualization, (6) GLib (libglib2.0-0, glib) for low-level utilities, (7) OpenMP (libgomp1) for parallel processing acceleration, (8) Development tools (python3-dev, build-essential, git) for building extensions and downloading models from GitHub. While ultralytics provides pre-built wheels with bundled dependencies for basic use, these system packages ensure full functionality for video processing, webcam access, GPU acceleration setup, and model training. Git, wget, and curl are needed for automatic model downloads from Ultralytics GitHub releases.",
     "package": "ultralytics>=8.3.70"
@@ -3116,7 +3074,7 @@
       "ffmpeg",
       "libvpx",
       "libopus",
-      "libsrtp",
+      "srtp",
       "lz4",
       "pkg-config"
     ],
@@ -3139,8 +3097,7 @@
     "nix_dependencies": [
       "python3",
       "libuv",
-      "openssl",
-      "stdenv.cc.cc.lib"
+      "openssl"
     ],
     "notes": "Uvicorn is a lightning-fast ASGI server implementation. While the core uvicorn package is pure Python, it has optional 'standard' extras (uvloop, httptools, websockets) that provide significant performance improvements through compiled extensions. System dependencies include: python3-dev/python3 for Python headers and pip installation, build-essential for C/C++ compilers needed by optional performance dependencies, libuv1-dev/libuv for uvloop (a fast event loop implementation that wraps libuv, providing 2-4x performance improvement over asyncio's default loop), and libssl-dev/openssl for secure WebSocket connections and HTTPS support. Uvicorn 0.34.0+ requires Python 3.8+. Most users install with pre-built wheels, but these dependencies ensure the 'standard' extras can be built from source for optimal performance.",
     "package": "uvicorn>=0.34.0"
