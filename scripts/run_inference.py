@@ -24,7 +24,6 @@ from dimos.core.transport import LCMTransport
 from dimos.msgs.sensor_msgs import Image
 from dimos.msgs.sensor_msgs.image_impls.AbstractImage import ImageFormat
 
-
 ACTION_HORIZON = 15
 
 
@@ -52,10 +51,10 @@ def get_camera_image(timeout: float = 5.0, topic: str = "/camera/color") -> np.n
     return image_data["image"]
 
 
-
 def franka_to_xarm(franka_joint_positions):
     offsets = np.array([0, 0, 0, 180, 0, 180, 0])
     return offsets - franka_joint_positions
+
 
 def xarm_to_franka(xarm_joint_positions):
     offsets = np.array([0, 0, 0, 180, 0, 180, 0])
@@ -70,6 +69,7 @@ def get_observation():
         "observation/gripper_position": 0.0,
         "prompt": "move the arm slightly to the left",
     }
+
 
 def run_inference():
     """

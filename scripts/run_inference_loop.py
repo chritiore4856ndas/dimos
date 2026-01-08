@@ -199,7 +199,7 @@ def main() -> None:
             print(f"xArm get_servo_angle: {code}, {angles}")
             if code != 0:
                 raise RuntimeError(f"xArm get_servo_angle failed with code {code}")
-            joint_position = list(angles[: inferred_num_joints])
+            joint_position = list(angles[:inferred_num_joints])
 
             # code, gripper_position = arm.get_gripper_position()
             # if code != 0:
@@ -213,14 +213,16 @@ def main() -> None:
             #     image_size=args.image_size,
             # )
             obs = {
-                    "observation/exterior_image_1_left": np.random.randint(
-                        256, size=(224, 224, 3), dtype=np.uint8
-                    ),
-                    "observation/wrist_image_left": np.random.randint(256, size=(224, 224, 3), dtype=np.uint8),
-                    "observation/joint_position": joint_position,  # Your xArm joint positions
-                    "observation/gripper_position": 0.0,  # Your gripper position
-                    "prompt": "move the arm slightly to the left",  # Your task description
-                }
+                "observation/exterior_image_1_left": np.random.randint(
+                    256, size=(224, 224, 3), dtype=np.uint8
+                ),
+                "observation/wrist_image_left": np.random.randint(
+                    256, size=(224, 224, 3), dtype=np.uint8
+                ),
+                "observation/joint_position": joint_position,  # Your xArm joint positions
+                "observation/gripper_position": 0.0,  # Your gripper position
+                "prompt": "move the arm slightly to the left",  # Your task description
+            }
             # print(f"Observation: {obs}")
             result = policy.infer(obs)
             actions = _as_actions_array(result["actions"])
