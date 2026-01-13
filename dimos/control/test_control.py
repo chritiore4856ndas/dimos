@@ -54,6 +54,7 @@ def mock_backend():
     backend.read_joint_efforts.return_value = [0.0] * 6
     backend.write_joint_positions.return_value = True
     backend.write_joint_velocities.return_value = True
+    backend.set_control_mode.return_value = True
     return backend
 
 
@@ -222,8 +223,8 @@ class TestJointTrajectoryTask:
         assert "arm_joint3" in claim.joints
 
     def test_execute_trajectory(self, trajectory_task, simple_trajectory):
-        t_now = time.perf_counter()
-        result = trajectory_task.execute(simple_trajectory, t_now)
+        time.perf_counter()
+        result = trajectory_task.execute(simple_trajectory)
         assert result is True
         assert trajectory_task.is_active()
         assert trajectory_task.get_state() == TrajectoryState.EXECUTING
@@ -231,28 +232,46 @@ class TestJointTrajectoryTask:
     def test_compute_during_trajectory(
         self, trajectory_task, simple_trajectory, orchestrator_state
     ):
-        t_now = time.perf_counter()
-        trajectory_task.execute(simple_trajectory, t_now)
+        t_start = time.perf_counter()
+        trajectory_task.execute(simple_trajectory)
 
+        # First compute sets start time (deferred start)
+        state0 = OrchestratorState(
+            joints=orchestrator_state.joints,
+            t_now=t_start,
+            dt=0.01,
+        )
+        trajectory_task.compute(state0)
+
+        # Compute at 0.5s into trajectory
         state = OrchestratorState(
             joints=orchestrator_state.joints,
-            t_now=t_now + 0.5,
+            t_now=t_start + 0.5,
             dt=0.01,
         )
         output = trajectory_task.compute(state)
 
         assert output is not None
-        assert output.mode == ControlMode.POSITION
+        assert output.mode == ControlMode.SERVO_POSITION
         assert len(output.positions) == 3
         assert 0.4 < output.positions[0] < 0.6
 
     def test_trajectory_completes(self, trajectory_task, simple_trajectory, orchestrator_state):
-        t_now = time.perf_counter()
-        trajectory_task.execute(simple_trajectory, t_now)
+        t_start = time.perf_counter()
+        trajectory_task.execute(simple_trajectory)
 
+        # First compute sets start time (deferred start)
+        state0 = OrchestratorState(
+            joints=orchestrator_state.joints,
+            t_now=t_start,
+            dt=0.01,
+        )
+        trajectory_task.compute(state0)
+
+        # Compute past trajectory duration
         state = OrchestratorState(
             joints=orchestrator_state.joints,
-            t_now=t_now + 1.5,
+            t_now=t_start + 1.5,
             dt=0.01,
         )
         output = trajectory_task.compute(state)
@@ -264,8 +283,7 @@ class TestJointTrajectoryTask:
         assert trajectory_task.get_state() == TrajectoryState.COMPLETED
 
     def test_cancel_trajectory(self, trajectory_task, simple_trajectory):
-        t_now = time.perf_counter()
-        trajectory_task.execute(simple_trajectory, t_now)
+        trajectory_task.execute(simple_trajectory)
         assert trajectory_task.is_active()
 
         trajectory_task.cancel()
@@ -273,20 +291,27 @@ class TestJointTrajectoryTask:
         assert trajectory_task.get_state() == TrajectoryState.ABORTED
 
     def test_preemption(self, trajectory_task, simple_trajectory):
-        t_now = time.perf_counter()
-        trajectory_task.execute(simple_trajectory, t_now)
+        trajectory_task.execute(simple_trajectory)
 
         trajectory_task.on_preempted("safety_task", frozenset({"arm_joint1"}))
         assert trajectory_task.get_state() == TrajectoryState.ABORTED
         assert not trajectory_task.is_active()
 
-    def test_progress(self, trajectory_task, simple_trajectory):
-        t_now = time.perf_counter()
-        trajectory_task.execute(simple_trajectory, t_now)
+    def test_progress(self, trajectory_task, simple_trajectory, orchestrator_state):
+        t_start = time.perf_counter()
+        trajectory_task.execute(simple_trajectory)
 
-        assert trajectory_task.get_progress(t_now) == pytest.approx(0.0, abs=0.01)
-        assert trajectory_task.get_progress(t_now + 0.5) == pytest.approx(0.5, abs=0.01)
-        assert trajectory_task.get_progress(t_now + 1.0) == pytest.approx(1.0, abs=0.01)
+        # First compute sets start time (deferred start)
+        state0 = OrchestratorState(
+            joints=orchestrator_state.joints,
+            t_now=t_start,
+            dt=0.01,
+        )
+        trajectory_task.compute(state0)
+
+        assert trajectory_task.get_progress(t_start) == pytest.approx(0.0, abs=0.01)
+        assert trajectory_task.get_progress(t_start + 0.5) == pytest.approx(0.5, abs=0.01)
+        assert trajectory_task.get_progress(t_start + 1.0) == pytest.approx(1.0, abs=0.01)
 
 
 # =============================================================================
@@ -508,8 +533,7 @@ class TestIntegration:
         )
 
         tick_loop.start()
-        t_now = time.perf_counter()
-        traj_task.execute(trajectory, t_now)
+        traj_task.execute(trajectory)
 
         time.sleep(0.6)
         tick_loop.stop()

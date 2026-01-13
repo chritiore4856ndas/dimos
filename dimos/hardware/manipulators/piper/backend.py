@@ -165,6 +165,7 @@ class PiperBackend:
             return False
 
         # Piper move modes: 0x01=position, 0x02=velocity
+        # SERVO_POSITION uses position mode for high-freq streaming
         move_mode = 0x01  # Default position mode
         if mode == ControlMode.VELOCITY:
             move_mode = 0x02
@@ -192,23 +193,21 @@ class PiperBackend:
     def read_joint_positions(self) -> list[float]:
         """Read joint positions (Piper units -> radians)."""
         if not self._sdk:
-            return [0.0] * self._dof
+            raise RuntimeError("Not connected")
 
-        try:
-            joint_msgs = self._sdk.GetArmJointMsgs()
-            if joint_msgs and joint_msgs.joint_state:
-                js = joint_msgs.joint_state
-                return [
-                    js.joint_1 * PIPER_TO_RAD,
-                    js.joint_2 * PIPER_TO_RAD,
-                    js.joint_3 * PIPER_TO_RAD,
-                    js.joint_4 * PIPER_TO_RAD,
-                    js.joint_5 * PIPER_TO_RAD,
-                    js.joint_6 * PIPER_TO_RAD,
-                ]
-        except Exception:
-            pass
-        return [0.0] * self._dof
+        joint_msgs = self._sdk.GetArmJointMsgs()
+        if not joint_msgs or not joint_msgs.joint_state:
+            raise RuntimeError("Failed to read joint positions")
+
+        js = joint_msgs.joint_state
+        return [
+            js.joint_1 * PIPER_TO_RAD,
+            js.joint_2 * PIPER_TO_RAD,
+            js.joint_3 * PIPER_TO_RAD,
+            js.joint_4 * PIPER_TO_RAD,
+            js.joint_5 * PIPER_TO_RAD,
+            js.joint_6 * PIPER_TO_RAD,
+        ]
 
     def read_joint_velocities(self) -> list[float]:
         """Read joint velocities.

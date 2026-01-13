@@ -184,35 +184,12 @@ class ControlOrchestrator(Module[ControlOrchestratorConfig]):
 
         try:
             for hw_cfg in self.config.hardware:
-                backend = self._create_backend_from_config(hw_cfg)
-                try:
-                    if not backend.connect():
-                        raise RuntimeError(f"Failed to connect to {hw_cfg.type} backend")
-
-                    if hw_cfg.auto_enable and hasattr(backend, "write_enable"):
-                        backend.write_enable(True)
-
-                    self.add_hardware(
-                        hw_cfg.id,
-                        backend,
-                        joint_prefix=hw_cfg.joint_prefix or hw_cfg.id,
-                    )
-                    hardware_added.append(hw_cfg.id)
-                except Exception as e:
-                    logger.error(f"Failed to setup hardware {hw_cfg.id}: {e}")
-                    try:
-                        backend.disconnect()
-                    except Exception:
-                        pass  # Best effort cleanup
-                    raise
+                self._setup_hardware(hw_cfg)
+                hardware_added.append(hw_cfg.id)
 
             for task_cfg in self.config.tasks:
-                try:
-                    task = self._create_task_from_config(task_cfg)
-                    self.add_task(task)
-                except Exception as e:
-                    logger.error(f"Failed to setup task {task_cfg.name}: {e}")
-                    raise
+                task = self._create_task_from_config(task_cfg)
+                self.add_task(task)
 
         except Exception:
             # Rollback: clean up all successfully added hardware
@@ -220,7 +197,26 @@ class ControlOrchestrator(Module[ControlOrchestratorConfig]):
                 try:
                     self.remove_hardware(hw_id)
                 except Exception:
-                    pass  # Best effort cleanup
+                    pass
+            raise
+
+    def _setup_hardware(self, hw_cfg: HardwareConfig) -> None:
+        """Connect and add a single hardware backend."""
+        backend = self._create_backend_from_config(hw_cfg)
+
+        if not backend.connect():
+            raise RuntimeError(f"Failed to connect to {hw_cfg.type} backend")
+
+        try:
+            if hw_cfg.auto_enable and hasattr(backend, "write_enable"):
+                backend.write_enable(True)
+            self.add_hardware(
+                hw_cfg.id,
+                backend,
+                joint_prefix=hw_cfg.joint_prefix or hw_cfg.id,
+            )
+        except Exception:
+            backend.disconnect()
             raise
 
     def _create_backend_from_config(self, cfg: HardwareConfig) -> ManipulatorBackend:
@@ -293,7 +289,11 @@ class ControlOrchestrator(Module[ControlOrchestratorConfig]):
 
     @rpc
     def remove_hardware(self, hardware_id: str) -> bool:
-        """Remove a hardware interface."""
+        """Remove a hardware interface.
+
+        Note: For safety, call this only when no tasks are actively using this
+        hardware. Consider stopping the orchestrator before removing hardware.
+        """
         with self._hardware_lock:
             if hardware_id not in self._hardware:
                 return False
@@ -404,12 +404,11 @@ class ControlOrchestrator(Module[ControlOrchestratorConfig]):
                 logger.warning(f"Task {task_name} doesn't support execute()")
                 return False
 
-            t_now: float = time.perf_counter()
             logger.info(
                 f"Executing trajectory on {task_name}: "
                 f"{len(trajectory.points)} points, duration={trajectory.duration:.3f}s"
             )
-            return task.execute(trajectory, t_now)  # type: ignore[attr-defined,no-any-return]
+            return task.execute(trajectory)  # type: ignore[attr-defined,no-any-return]
 
     @rpc
     def get_trajectory_status(self, task_name: str) -> dict[str, Any]:
@@ -426,7 +425,7 @@ class ControlOrchestrator(Module[ControlOrchestratorConfig]):
                 result["state"] = state.name if isinstance(state, TrajectoryState) else str(state)
 
             if hasattr(task, "get_progress"):
-                t_now: float = time.perf_counter()
+                t_now = time.perf_counter()
                 result["progress"] = task.get_progress(t_now)  # type: ignore[attr-defined]
 
             return result

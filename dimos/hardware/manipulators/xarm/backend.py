@@ -98,7 +98,7 @@ class XArmBackend:
             # Initialize to servo mode for high-frequency control
             self._arm.set_mode(_XARM_MODE_SERVO_CARTESIAN)  # Mode 1 = servo mode
             self._arm.set_state(0)
-            self._control_mode = ControlMode.POSITION
+            self._control_mode = ControlMode.SERVO_POSITION
 
             return True
         except Exception as e:
@@ -156,6 +156,7 @@ class XArmBackend:
 
         mode_map = {
             ControlMode.POSITION: _XARM_MODE_POSITION,
+            ControlMode.SERVO_POSITION: _XARM_MODE_SERVO_CARTESIAN,  # Mode 1 for high-freq
             ControlMode.VELOCITY: _XARM_MODE_JOINT_VELOCITY,
             ControlMode.TORQUE: _XARM_MODE_JOINT_TORQUE,
             ControlMode.CARTESIAN: _XARM_MODE_SERVO_CARTESIAN,
@@ -184,12 +185,12 @@ class XArmBackend:
     def read_joint_positions(self) -> list[float]:
         """Read joint positions (degrees -> radians)."""
         if not self._arm:
-            return [0.0] * self._dof
+            raise RuntimeError("Not connected")
 
         _, angles = self._arm.get_servo_angle()
-        if angles:
-            return [math.radians(a) for a in angles[: self._dof]]
-        return [0.0] * self._dof
+        if not angles:
+            raise RuntimeError("Failed to read joint positions")
+        return [math.radians(a) for a in angles[: self._dof]]
 
     def read_joint_velocities(self) -> list[float]:
         """Read joint velocities.

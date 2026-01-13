@@ -153,7 +153,7 @@ class JointCommandOutput:
     def get_values(self) -> list[float] | None:
         """Get the active values based on mode."""
         match self.mode:
-            case ControlMode.POSITION:
+            case ControlMode.POSITION | ControlMode.SERVO_POSITION:
                 return self.positions
             case ControlMode.VELOCITY:
                 return self.velocities

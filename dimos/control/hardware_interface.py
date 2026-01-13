@@ -23,6 +23,7 @@ Wraps ManipulatorBackend with orchestrator-specific features:
 from __future__ import annotations
 
 import logging
+import time
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from dimos.hardware.manipulators.spec import ControlMode
@@ -192,7 +193,7 @@ class BackendHardwareInterface:
 
         # Send to backend
         match mode:
-            case ControlMode.POSITION:
+            case ControlMode.POSITION | ControlMode.SERVO_POSITION:
                 return self._backend.write_joint_positions(ordered)
             case ControlMode.VELOCITY:
                 return self._backend.write_joint_velocities(ordered)
@@ -204,16 +205,19 @@ class BackendHardwareInterface:
 
     def _initialize_last_commanded(self) -> None:
         """Initialize last_commanded with current hardware positions."""
-        try:
-            current = self._backend.read_joint_positions()
-            for i, name in enumerate(self._joint_names):
-                self._last_commanded[name] = current[i]
-            self._initialized = True
-        except Exception:
-            # If read fails, initialize to zeros
-            for name in self._joint_names:
-                self._last_commanded[name] = 0.0
-            self._initialized = True
+        for _ in range(10):
+            try:
+                current = self._backend.read_joint_positions()
+                for i, name in enumerate(self._joint_names):
+                    self._last_commanded[name] = current[i]
+                self._initialized = True
+                return
+            except Exception:
+                time.sleep(0.01)
+
+        raise RuntimeError(
+            f"Hardware {self._hardware_id} failed to read initial positions after retries"
+        )
 
     def _build_ordered_command(self) -> list[float]:
         """Build ordered command list from last_commanded dict."""

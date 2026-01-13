@@ -95,7 +95,8 @@ class JointTrajectoryTask:
         # State machine
         self._state = TrajectoryState.IDLE
         self._trajectory: JointTrajectory | None = None
-        self._start_time: float = 0.0  # In orchestrator's t_now space
+        self._start_time: float = 0.0
+        self._pending_start: bool = False  # Defer start time to first compute()
 
         logger.info(f"JointTrajectoryTask {name} initialized for joints: {config.joint_names}")
 
@@ -109,7 +110,7 @@ class JointTrajectoryTask:
         return ResourceClaim(
             joints=self._joint_names,
             priority=self._config.priority,
-            mode=ControlMode.POSITION,
+            mode=ControlMode.SERVO_POSITION,
         )
 
     def is_active(self) -> bool:
@@ -130,7 +131,11 @@ class JointTrajectoryTask:
         if self._trajectory is None:
             return None
 
-        # Use orchestrator's time, NOT time.time()
+        # Set start time on first compute() for consistent timing
+        if self._pending_start:
+            self._start_time = state.t_now
+            self._pending_start = False
+
         t_elapsed = state.t_now - self._start_time
 
         # Check completion - clamp to final position to ensure we reach goal
@@ -142,7 +147,7 @@ class JointTrajectoryTask:
             return JointCommandOutput(
                 joint_names=self._joint_names_list,
                 positions=list(q_ref),
-                mode=ControlMode.POSITION,
+                mode=ControlMode.SERVO_POSITION,
             )
 
         # Sample trajectory
@@ -151,7 +156,7 @@ class JointTrajectoryTask:
         return JointCommandOutput(
             joint_names=self._joint_names_list,
             positions=list(q_ref),
-            mode=ControlMode.POSITION,
+            mode=ControlMode.SERVO_POSITION,
         )
 
     def on_preempted(self, by_task: str, joints: frozenset[str]) -> None:
@@ -170,12 +175,11 @@ class JointTrajectoryTask:
     # Task-specific methods
     # =========================================================================
 
-    def execute(self, trajectory: JointTrajectory, t_now: float) -> bool:
+    def execute(self, trajectory: JointTrajectory) -> bool:
         """Start executing a trajectory.
 
         Args:
             trajectory: Trajectory to execute
-            t_now: Current orchestrator time (from state.t_now)
 
         Returns:
             True if accepted, False if invalid or in FAULT state
@@ -197,7 +201,7 @@ class JointTrajectoryTask:
             logger.info(f"Preempting active trajectory on {self._name}")
 
         self._trajectory = trajectory
-        self._start_time = t_now  # Use orchestrator's time
+        self._pending_start = True  # Start time set on first compute()
         self._state = TrajectoryState.EXECUTING
 
         logger.info(

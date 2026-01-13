@@ -46,7 +46,8 @@ class DriverStatus(Enum):
 class ControlMode(Enum):
     """Control modes for manipulator."""
 
-    POSITION = "position"
+    POSITION = "position"  # Planned position control (slower, smoother)
+    SERVO_POSITION = "servo_position"  # High-freq joint position streaming (100Hz+)
     VELOCITY = "velocity"
     TORQUE = "torque"
     CARTESIAN = "cartesian"
