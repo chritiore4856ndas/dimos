@@ -27,6 +27,7 @@ from dimos.agents.cli.human import human_input
 from dimos.agents.cli.web import web_input
 from dimos.agents.ollama_agent import ollama_installed
 from dimos.agents.skills.navigation import navigation_skill
+from dimos.agents.skills.person_follow import person_follow_skill
 from dimos.agents.skills.speak_skill import speak_skill
 from dimos.agents.spec import Provider
 from dimos.agents.vlm_agent import vlm_agent
@@ -167,6 +168,7 @@ with_jpegshm = autoconnect(
 _common_agentic = autoconnect(
     human_input(),
     navigation_skill(),
+    person_follow_skill(camera_info=GO2Connection.camera_info_static),
     unitree_skills(),
     web_input(),
     speak_skill(),
