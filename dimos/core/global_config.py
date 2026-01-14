@@ -19,6 +19,7 @@ from typing import Literal, TypeAlias
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from dimos.mapping.occupancy.path_map import NavigationStrategy
+from dimos.navigation.global_planner.types import AStarAlgorithm
 
 ViewerBackend: TypeAlias = Literal["rerun-web", "rerun-native", "foxglove"]
 
@@ -47,6 +48,7 @@ class GlobalConfig(BaseSettings):
     robot_width: float = 0.3
     robot_rotation_diameter: float = 0.6
     planner_strategy: NavigationStrategy = "simple"
+    astar_algorithm: AStarAlgorithm = "min_cost"
     planner_robot_speed: float | None = None
 
     model_config = SettingsConfigDict(
