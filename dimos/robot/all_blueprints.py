@@ -53,6 +53,8 @@ all_blueprints = {
     "demo-google-maps-skill": "dimos.agents.skills.demo_google_maps_skill:demo_google_maps_skill",
     "demo-object-scene-registration": "dimos.perception.demo_object_scene_registration:demo_object_scene_registration",
     "demo-error-on-name-conflicts": "dimos.robot.unitree_webrtc.demo_error_on_name_conflicts:blueprint",
+    # Dynamic Tracking blueprints
+    "aruco-tracker-realsense": "dimos.manipulation.dynamic_tracking.dt_blueprint:aruco_tracker_realsense",
 }
 
 

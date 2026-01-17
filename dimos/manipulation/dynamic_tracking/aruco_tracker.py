@@ -28,6 +28,12 @@ from dimos.msgs.geometry_msgs import Quaternion, Transform, Vector3
 from dimos.msgs.sensor_msgs.CameraInfo import CameraInfo
 from dimos.msgs.sensor_msgs.Image import Image
 
+from dimos.utils.logging_config import setup_logger
+
+logger = setup_logger()
+# Directory where this file is located
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 @dataclass
 class ArucoTrackerConfig(ModuleConfig):
@@ -38,7 +44,7 @@ class ArucoTrackerConfig(ModuleConfig):
     camera_frame_id: str = "camera_color_optical_frame"  # Frame ID for the camera
     target_marker_id: int | None = None  # Specific marker ID to track (None = track all)
     save_images: bool = True  # Whether to save annotated images
-    output_dir: str = "aruco_output"  # Directory to save images
+    output_dir: str = os.path.join(_THIS_DIR, "aruco_output")  # Directory to save images
     processing_rate: float = 1  # Processing rate in Hz (how often to process latest image)
     max_loops: int = 5  # Maximum number of loops to process
     move_robot_to_aruco: bool = True  # Whether to move the robot to the ArUco marker
@@ -114,6 +120,9 @@ class ArucoTracker(Module[ArucoTrackerConfig]):
         )
         self._processing_thread.start()
 
+        # Publish static transform from base_link to world_frame
+        self._publish_robot_base_to_world_transform()
+
     def _store_latest_image(self, image: Image) -> None:
         """Store the latest image for processing."""
         self._latest_image = image
@@ -147,7 +156,7 @@ class ArucoTracker(Module[ArucoTrackerConfig]):
             rotation=Quaternion(0.0, 0.0, 0.0, 1.0),
             frame_id="world_frame",
             child_frame_id="base_link",
-            ts=time.time(),
+            ts=time.time(), 
         )
         self.tf.publish(robot_base_to_world_transform)
 
@@ -253,9 +262,12 @@ class ArucoTracker(Module[ArucoTrackerConfig]):
 
             print("--------------------------------")
 
-            # print(self.tf.graph())
+            print(self.tf.graph())
             # print aruco to camera link
+            logger.info(f"aruco to camera link: {tvec} {quat}")
+            print("--------------------------------")
             print(f"aruco to camera link: {self.tf.get('aruco_0', 'camera_color_optical_frame')}")
+            print(f"camera link to aruco: {self.tf.get('camera_color_optical_frame', 'aruco_0')}")
             # print aruco to base link
             print(f"camera link to ee link: {self.tf.get('camera_color_optical_frame', 'ee_link')}")
             # print camera link to base link
@@ -355,15 +367,12 @@ class ArucoTracker(Module[ArucoTrackerConfig]):
                     # Extract pose components [x, y, z, roll, pitch, yaw]
                     x, y, z, roll, pitch, yaw = ee_pose
                     # Convert Euler angles to quaternion
-                    from dimos.hardware.manipulators.base.utils.converters import (
-                        euler_to_quaternion,
-                    )
-
-                    qx, qy, qz, qw = euler_to_quaternion(roll, pitch, yaw)
+                    from dimos.utils.transform_utils import euler_to_quaternion
+                    orientation = euler_to_quaternion(Vector3(roll, pitch, yaw))
                     # Create transform from base_link to ee_link
                     ee_transform = Transform(
                         translation=Vector3(float(x), float(y), float(z)),
-                        rotation=Quaternion(float(qx), float(qy), float(qz), float(qw)),
+                        rotation=orientation,
                         frame_id="base_link",
                         child_frame_id="ee_link",
                         ts=timestamp,
@@ -373,6 +382,25 @@ class ArucoTracker(Module[ArucoTrackerConfig]):
 
             except Exception as e:
                 print(f"Error getting EE pose from ManipulationModule: {e}")
+        else:
+            # Fallback: hardcoded EE pose when RPC is not available
+            # pos: x=0.4161, y=0.0011, z=0.4714 m
+            # rot: r=-179.0, p=0.2, y=0.3 deg
+            import math
+            from dimos.utils.transform_utils import euler_to_quaternion
+
+            x, y, z = 0.4161, 0.0011, 0.4714
+            roll, pitch, yaw = math.radians(-179.0), math.radians(0.2), math.radians(0.3)
+
+            orientation = euler_to_quaternion(Vector3(roll, pitch, yaw))
+            ee_transform = Transform(
+                translation=Vector3(float(x), float(y), float(z)),
+                rotation=orientation,
+                frame_id="base_link",
+                child_frame_id="ee_link",
+                ts=timestamp,
+            )
+            self.tf.publish(ee_transform)
         return aruco_transform
 
     def _draw_markers(

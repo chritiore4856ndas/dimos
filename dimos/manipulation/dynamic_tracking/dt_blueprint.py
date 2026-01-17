@@ -12,6 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+
+# Directory where this file is located
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+
 """
 Blueprint for ArUco marker tracking with RealSense camera.
 
@@ -48,7 +53,7 @@ from dimos.core.blueprints import autoconnect
 from dimos.core.transport import LCMTransport
 from dimos.hardware.sensors.camera.realsense.camera import RealSenseCamera
 from dimos.manipulation.dynamic_tracking.aruco_tracker import aruco_tracker
-from dimos.manipulation.manipulation_blueprints import xarm6_manipulation
+# from dimos.manipulation.manipulation_blueprints import xarm6_manipulation
 from dimos.msgs.geometry_msgs import Quaternion, Transform, Vector3
 from dimos.msgs.sensor_msgs import CameraInfo
 from dimos.msgs.sensor_msgs.Image import Image
@@ -86,7 +91,7 @@ aruco_tracker_realsense = autoconnect(
         camera_frame_id="camera_color_optical_frame",
         target_marker_id=0,  # Only track marker ID 0 (set to None to track all)
         save_images=True,
-        output_dir="aruco_output",
+        output_dir=os.path.join(_THIS_DIR, "aruco_output"),
         processing_rate=1,
         max_loops=30,
         move_robot_to_aruco=False,
@@ -99,25 +104,6 @@ aruco_tracker_realsense = autoconnect(
         # Camera info for pose estimation
         ("camera_info", CameraInfo): LCMTransport("/camera/color_info", CameraInfo),
     }
-)
-
-
-# =============================================================================
-# ArUco Tracker with RealSense Camera + XArm6 Manipulation
-# =============================================================================
-# Combines:
-#   - RealSenseCamera: RGB-D camera with hardware interface
-#   - ArucoTracker: Detects ArUco markers and computes transforms
-#   - XArm6 Manipulation Stack: Driver, planning, and trajectory controller
-#
-# This enables tracking ArUco markers while controlling the XArm6 robot.
-# The marker transforms published by ArucoTracker can be used by the
-# ManipulationModule for visual servoing or marker-based manipulation.
-# =============================================================================
-
-aruco_tracker_realsense_xarm6 = autoconnect(
-    aruco_tracker_realsense,
-    xarm6_manipulation,
 ).global_config(viewer_backend="foxglove")
 
 
