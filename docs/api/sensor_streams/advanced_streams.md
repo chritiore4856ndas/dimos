@@ -161,8 +161,6 @@ If you'd still like to switch to synchronous fetching, we provide two approaches
 <details>
 <summary>diagram source</summary>
 
-<details><summary>Pikchr</summary>
-
 ```pikchr fold output=assets/getter_hot_cold.svg
 color = white
 fill = none
@@ -239,7 +237,6 @@ text "blocking" italic with .n at Blk2.n + (0, -0.05in)
 <!--Result:-->
 ![output](assets/getter_hot_cold.svg)
 
-</details>
 
 **Prefer `getter_cold()`** when you can afford to wait and warmup isn't expensive. It's simpler (no cleanup needed) and doesn't hold resources. Only use `getter_hot()` when you need instant reads or the source is expensive to start.
 
