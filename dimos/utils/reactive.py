@@ -211,7 +211,9 @@ def spy(name: str):  # type: ignore[no-untyped-def]
     return ops.map(spyfun)
 
 
-def quality_barrier(quality_func: Callable[[T], float], target_frequency: float):  # type: ignore[no-untyped-def]
+def quality_barrier(
+    quality_func: Callable[[T], float], target_frequency: float
+) -> Callable[[Observable[T]], Observable[T]]:
     """
     RxPY pipe operator that selects the highest quality item within each time window.
 

@@ -38,6 +38,7 @@ from dimos.types.timestamped import Timestamped, TimestampedBufferCollection, to
 from dimos.utils.reactive import quality_barrier
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     import os
 
     from reactivex.observable import Observable
@@ -724,7 +725,7 @@ def sharpness_window(target_frequency: float, source: Observable[Image]) -> Obse
     )
 
 
-def sharpness_barrier(target_frequency: float):  # type: ignore[no-untyped-def]
+def sharpness_barrier(target_frequency: float) -> Callable[[Observable[Image]], Observable[Image]]:
     """Select the sharpest Image within each time window."""
     if target_frequency <= 0:
         raise ValueError("target_frequency must be positive")
