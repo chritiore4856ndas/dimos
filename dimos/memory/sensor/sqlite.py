@@ -20,6 +20,7 @@ import re
 import sqlite3
 
 from dimos.memory.sensor.base import SensorStore, T
+from dimos.utils.data import get_data, get_data_dir
 
 # Valid SQL identifier: alphanumeric and underscores, not starting with digit
 _VALID_IDENTIFIER = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
@@ -42,35 +43,69 @@ class SqliteStore(SensorStore[T]):
     Data is stored as pickled BLOBs with timestamp as indexed column.
 
     Usage:
-        # File-based (persistent)
-        store = SqliteStore("sensors.db", table="lidar")
+        # Named store (uses data/ directory, auto-downloads from LFS if needed)
+        store = SqliteStore("recordings/lidar")  # -> data/recordings/lidar.db
         store.save(data, timestamp)
+
+        # Absolute path
+        store = SqliteStore("/path/to/sensors.db")
 
         # In-memory (for testing)
         store = SqliteStore(":memory:")
 
-        # Query by timestamp
-        data = store.find_closest(seek=10.0)
+        # Multiple tables in one DB
+        store = SqliteStore("recordings/sensors", table="lidar")
     """
 
-    def __init__(self, db_path: str | Path, table: str = "sensor_data") -> None:
+    def __init__(self, name: str, table: str = "sensor_data") -> None:
         """
         Args:
-            db_path: Path to SQLite database file, or ":memory:" for in-memory.
+            name: Data name (e.g. "recordings/lidar") resolved via get_data,
+                  absolute path, or ":memory:" for in-memory.
             table: Table name for this sensor's data (alphanumeric/underscore only).
         """
-        self._db_path = str(db_path)
+        self._name = name
         self._table = _validate_identifier(table)
+        self._db_path: str | None = None
         self._conn: sqlite3.Connection | None = None
+
+    def _get_db_path(self, for_write: bool = False) -> str:
+        """Get database path, resolving via get_data if needed."""
+        if self._db_path is not None:
+            return self._db_path
+
+        # Special case for in-memory
+        if self._name == ":memory:":
+            self._db_path = ":memory:"
+            return self._db_path
+
+        # If absolute path, use directly
+        if Path(self._name).is_absolute():
+            self._db_path = self._name
+        elif for_write:
+            # For writing: use get_data_dir
+            db_file = get_data_dir(self._name + ".db")
+            db_file.parent.mkdir(parents=True, exist_ok=True)
+            self._db_path = str(db_file)
+        else:
+            # For reading: use get_data (handles LFS download)
+            # Try with .db extension first
+            try:
+                db_file = get_data(self._name + ".db")
+                self._db_path = str(db_file)
+            except FileNotFoundError:
+                # Fall back to get_data_dir for new databases
+                db_file = get_data_dir(self._name + ".db")
+                db_file.parent.mkdir(parents=True, exist_ok=True)
+                self._db_path = str(db_file)
+
+        return self._db_path
 
     def _get_conn(self) -> sqlite3.Connection:
         """Get or create database connection."""
         if self._conn is None:
-            # Create parent directory if needed (for file-based DBs)
-            if self._db_path != ":memory:":
-                Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
-
-            self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
+            db_path = self._get_db_path(for_write=True)
+            self._conn = sqlite3.connect(db_path, check_same_thread=False)
             self._create_table()
         return self._conn
 
