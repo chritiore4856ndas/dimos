@@ -41,6 +41,9 @@ export default function App(): React.ReactElement {
   const [isGpsMode, setIsGpsMode] = React.useState(false);
   const connectionRef = React.useRef<Connection | null>(null);
 
+  const [policyEnabled, setPolicyEnabled] = React.useState(false);
+  const [policyEstop, setPolicyEstop] = React.useState(false);
+
   React.useEffect(() => {
     connectionRef.current = new Connection(dispatch);
 
@@ -88,6 +91,21 @@ export default function App(): React.ReactElement {
     }
   }, [state.robotPose]);
 
+  const handleTogglePolicyEnable = React.useCallback(() => {
+    const nextEnabled = !policyEnabled;
+    setPolicyEnabled(nextEnabled);
+    connectionRef.current?.safetyCommand(nextEnabled, policyEstop);
+  }, [policyEnabled, policyEstop]);
+
+  const handleToggleEstop = React.useCallback(() => {
+    const nextEstop = !policyEstop;
+    setPolicyEstop(nextEstop);
+    // If estop is asserted, force policy disabled as well.
+    const nextEnabled = nextEstop ? false : policyEnabled;
+    setPolicyEnabled(nextEnabled);
+    connectionRef.current?.safetyCommand(nextEnabled, nextEstop);
+  }, [policyEnabled, policyEstop]);
+
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       {isGpsMode ? (
@@ -118,6 +136,12 @@ export default function App(): React.ReactElement {
         <ExplorePanel onStartExplore={handleStartExplore} onStopExplore={handleStopExplore} />
         <Button onClick={handleReturnHome} isActive={false}>Go Home</Button>
         <Button onClick={handleStop} isActive={false}>Stop</Button>
+        <Button onClick={handleTogglePolicyEnable} isActive={policyEnabled}>
+          {policyEnabled ? "Disable Policy" : "Enable Policy"}
+        </Button>
+        <Button onClick={handleToggleEstop} isActive={policyEstop}>
+          {policyEstop ? "Clear E-Stop" : "E-Stop"}
+        </Button>
         <KeyboardControlPanel
           onSendMoveCommand={handleSendMoveCommand}
           onStopMoveCommand={handleStopMoveCommand}

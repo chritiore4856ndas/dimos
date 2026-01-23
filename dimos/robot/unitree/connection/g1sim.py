@@ -29,6 +29,7 @@ from dimos.msgs.geometry_msgs import (
 )
 from dimos.robot.unitree_webrtc.type.lidar import LidarMessage
 from dimos.robot.unitree_webrtc.type.odometry import Odometry as SimOdometry
+from dimos_lcm.std_msgs import Bool  # type: ignore[import-untyped]
 from dimos.utils.logging_config import setup_logger
 
 if TYPE_CHECKING:
@@ -39,6 +40,8 @@ logger = setup_logger()
 
 class G1SimConnection(Module):
     cmd_vel: In[Twist]
+    policy_enable: In[Bool]
+    policy_estop: In[Bool]
     lidar: Out[LidarMessage]
     odom: Out[PoseStamped]
     ip: str | None
@@ -67,6 +70,8 @@ class G1SimConnection(Module):
         self.connection.start()
 
         self._disposables.add(Disposable(self.cmd_vel.subscribe(self.move)))
+        self._disposables.add(Disposable(self.policy_enable.subscribe(self.set_policy_enable)))
+        self._disposables.add(Disposable(self.policy_estop.subscribe(self.set_policy_estop)))
         self._disposables.add(self.connection.odom_stream().subscribe(self._publish_sim_odom))
         self._disposables.add(self.connection.lidar_stream().subscribe(self.lidar.publish))
 
@@ -114,6 +119,22 @@ class G1SimConnection(Module):
     def move(self, twist: Twist, duration: float = 0.0) -> None:
         assert self.connection is not None
         self.connection.move(twist, duration)
+
+    def set_policy_enable(self, msg: Bool) -> None:
+        if self.connection is None:
+            return
+        try:
+            self.connection.set_policy_enabled(bool(msg.data))
+        except Exception as e:
+            logger.warning(f"Failed to set policy enabled: {e}")
+
+    def set_policy_estop(self, msg: Bool) -> None:
+        if self.connection is None:
+            return
+        try:
+            self.connection.set_policy_estop(bool(msg.data))
+        except Exception as e:
+            logger.warning(f"Failed to set policy estop: {e}")
 
     @rpc
     def publish_request(self, topic: str, data: dict[str, Any]) -> dict[Any, Any]:

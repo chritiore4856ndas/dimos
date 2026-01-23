@@ -50,6 +50,62 @@ from dimos.utils.logging_config import setup_logger
 
 logger = setup_logger()
 
+_GLFW_KEY_UP = 265
+_GLFW_KEY_DOWN = 264
+# NOTE: Avoid keys that MuJoCo viewer uses for built-in toggles (can blank the view).
+# FALCON/unitree_mujoco uses '9' for elastic band toggle; keep that convention.
+_GLFW_KEY_BAND_TOGGLE = 57  # '9'
+
+
+class ElasticBand:
+    """Simple spring-damper 'gantry' assistance (ported from FALCON/unitree_mujoco style).
+
+    Controls (in the MuJoCo viewer window):
+    - G: toggle elastic band on/off
+    - Up/Down arrows: shorten/lengthen the band (stronger/weaker lift)
+    """
+
+    def __init__(self) -> None:
+        self.stiffness = 200.0
+        self.damping = 100.0
+        self.point = np.array([0.0, 0.0, 3.0], dtype=np.float64)  # world anchor
+        # Rest length (m). Set to match the real harness starting length.
+        self.length = 0.7
+        # Enable by default (matches typical real harness setup).
+        self.enable = True
+        # Safety clamp to avoid insane impulses if the band parameters are mis-set.
+        self.max_force = 500.0  # N per axis
+
+    def reset_to_pose(self, attach_pos: np.ndarray) -> None:
+        # Anchor above current position; rest length set so initial force is ~0.
+        self.point = np.array(
+            [float(attach_pos[0]), float(attach_pos[1]), float(attach_pos[2]) + 2.0],
+            dtype=np.float64,
+        )
+        # Do not override self.length here; we want deterministic starting behavior across runs.
+
+    def advance(self, x: np.ndarray, dx: np.ndarray) -> np.ndarray:
+        delta = self.point - x
+        dist = float(np.linalg.norm(delta))
+        if dist < 1e-6:
+            return np.zeros(3, dtype=np.float64)
+        direction = delta / dist
+        v = float(np.dot(dx, direction))
+        f = (self.stiffness * (dist - self.length) - self.damping * v) * direction
+        f = np.clip(f, -self.max_force, self.max_force)
+        return f
+
+    def key_callback(self, key: int) -> None:
+        if key == _GLFW_KEY_BAND_TOGGLE:
+            self.enable = not self.enable
+            logger.info("Elastic band toggled", enabled=self.enable, length=self.length)
+        elif key == _GLFW_KEY_UP:
+            self.length = max(0.0, self.length - 0.05)
+            logger.info("Elastic band up (shorten)", length=self.length)
+        elif key == _GLFW_KEY_DOWN:
+            self.length = self.length + 0.05
+            logger.info("Elastic band down (lengthen)", length=self.length)
+
 
 class MockController:
     """Controller that reads commands from shared memory."""
@@ -202,7 +258,30 @@ def _run_simulation(config: GlobalConfig, shm: ShmReader) -> None:
             steps_per_frame=config.mujoco_steps_per_frame,
         )
 
-    with viewer.launch_passive(model, data, show_left_ui=False, show_right_ui=False) as m_viewer:
+    # Elastic band / gantry assist (sim-only). Attach at the torso link to approximate a real harness.
+    elastic_band = ElasticBand()
+    try:
+        gantry_body_id = model.body("torso_link").id
+    except Exception:
+        gantry_body_id = -1
+
+    if gantry_body_id >= 0:
+        elastic_band.reset_to_pose(data.xpos[gantry_body_id].copy())
+        logger.info(
+            "Elastic band initialized",
+            enabled=elastic_band.enable,
+            toggle_key="9",
+            adjust_keys="Up/Down",
+            length=elastic_band.length,
+        )
+
+    with viewer.launch_passive(
+        model,
+        data,
+        show_left_ui=False,
+        show_right_ui=False,
+        key_callback=elastic_band.key_callback,
+    ) as m_viewer:
         camera_size = (VIDEO_WIDTH, VIDEO_HEIGHT)
 
         # Create renderers
@@ -251,6 +330,15 @@ def _run_simulation(config: GlobalConfig, shm: ShmReader) -> None:
             # Step simulation
             t0 = time.perf_counter()
             for _ in range(config.mujoco_steps_per_frame):
+                # Apply gantry force before stepping.
+                if gantry_body_id >= 0:
+                    if elastic_band.enable:
+                        # Use free-joint linear velocity (qvel[0:3]) as a damping signal.
+                        force = elastic_band.advance(data.xpos[gantry_body_id], data.qvel[0:3])
+                        data.xfrc_applied[gantry_body_id, 0:3] = force
+                    else:
+                        data.xfrc_applied[gantry_body_id, 0:3] = 0.0
+
                 mujoco.mj_step(model, data)
                 # In SDK2 mode, publish state after each physics step
                 if sdk2_bridge is not None:
@@ -262,6 +350,8 @@ def _run_simulation(config: GlobalConfig, shm: ShmReader) -> None:
                 sim_time = float(data.time)
                 if sim_time + 1e-9 < last_sim_time:
                     sdk2_bridge.on_mujoco_reset()
+                    if gantry_body_id >= 0:
+                        elastic_band.reset_to_pose(data.xpos[gantry_body_id].copy())
                 last_sim_time = sim_time
 
             t0 = time.perf_counter()

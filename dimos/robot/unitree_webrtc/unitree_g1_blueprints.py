@@ -46,6 +46,7 @@ from dimos.msgs.geometry_msgs import (
 from dimos.msgs.nav_msgs import Odometry, Path
 from dimos.msgs.sensor_msgs import Image, PointCloud2
 from dimos.msgs.std_msgs import Bool
+from dimos_lcm.std_msgs import Bool as LCMBool  # type: ignore[import-untyped]
 from dimos.msgs.vision_msgs import Detection2DArray
 from dimos.navigation.frontier_exploration import wavefront_frontier_explorer
 from dimos.navigation.replanning_a_star.module import replanning_a_star_planner
@@ -117,6 +118,9 @@ _basic_no_nav_hw = (
             # Camera topics (if camera module is added)
             ("color_image", Image): LCMTransport("/g1/color_image", Image),
             ("camera_info", CameraInfo): LCMTransport("/g1/camera_info", CameraInfo),
+            # Policy safety controls (Command Center)
+            ("policy_enable", LCMBool): LCMTransport("/policy_enable", LCMBool),
+            ("policy_estop", LCMBool): LCMTransport("/policy_estop", LCMBool),
         }
     )
 )
@@ -153,6 +157,9 @@ _basic_no_nav_sim = (
             # Camera topics (sim connection may publish these)
             ("color_image", Image): LCMTransport("/g1/color_image", Image),
             ("camera_info", CameraInfo): LCMTransport("/g1/camera_info", CameraInfo),
+            # Policy safety controls (Command Center)
+            ("policy_enable", LCMBool): LCMTransport("/policy_enable", LCMBool),
+            ("policy_estop", LCMBool): LCMTransport("/policy_estop", LCMBool),
         }
     )
 )

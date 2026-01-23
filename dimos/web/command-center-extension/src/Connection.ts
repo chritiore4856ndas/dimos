@@ -104,6 +104,10 @@ export default class Connection {
     this.socket.emit("move_command", twist);
   }
 
+  safetyCommand(enabled: boolean, estop: boolean): void {
+    this.socket.emit("safety_command", { enabled, estop });
+  }
+
   disconnect(): void {
     this.socket.disconnect();
   }

@@ -149,7 +149,7 @@ class MujocoConnection:
         robot_type = bundle_cfg.get("robot_type", "g1")
 
         # Find policy file
-        data_dir = Path(__file__).parent.parent.parent.parent / "data" / "mujoco_sim"
+        data_dir = Path(__file__).parent.parent.parent.parent / "data" / "mujoco_sim"   
         policy_path = data_dir / policy_name
         if not policy_path.exists():
             # Try in profile directory
@@ -407,6 +407,16 @@ class MujocoConnection:
             self._stop_timer.daemon = True
             self._stop_timer.start()
         return True
+
+    def set_policy_enabled(self, enabled: bool) -> None:
+        """Enable/disable the SDK2 policy runner (no-op when not running in SDK2 mode)."""
+        if self._policy_runner is not None and hasattr(self._policy_runner, "set_enabled"):
+            self._policy_runner.set_enabled(bool(enabled))
+
+    def set_policy_estop(self, estop: bool) -> None:
+        """Latch/unlatch E-stop on the SDK2 policy runner (no-op when not running in SDK2 mode)."""
+        if self._policy_runner is not None and hasattr(self._policy_runner, "set_estop"):
+            self._policy_runner.set_estop(bool(estop))
 
     def publish_request(self, topic: str, data: dict[str, Any]) -> dict[Any, Any]:
         print(f"publishing request, topic={topic}, data={data}")

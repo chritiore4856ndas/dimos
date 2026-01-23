@@ -153,6 +153,13 @@ class SDK2PolicyRunner:
         # Command (velocity target from external source)
         self.command = np.zeros(3, dtype=np.float32)  # vx, vy, wz
 
+        # Safety/arming state
+        self._enabled = False
+        self._estop = False
+        # When disabled we publish a "hold current pose" command; keep gains at full strength
+        # so the robot doesn't go limp/collapse before the UI enables the policy.
+        self._hold_kp_scale = 1.0
+
         # Thread lock for safe access to sensor data (callbacks run in background threads)
         self._data_lock = threading.Lock()
 
@@ -375,10 +382,28 @@ class SDK2PolicyRunner:
         self.command[1] = vy
         self.command[2] = wz
 
+    def set_enabled(self, enabled: bool) -> None:
+        with self._data_lock:
+            self._enabled = bool(enabled)
+
+    def set_estop(self, estop: bool) -> None:
+        with self._data_lock:
+            self._estop = bool(estop)
+            if self._estop:
+                # When E-stop is asserted, force policy disabled.
+                self._enabled = False
+
     def step(self) -> None:
         """Run one policy step."""
         if not self._state_received:
             return
+
+        with self._data_lock:
+            enabled = bool(self._enabled)
+            estop = bool(self._estop)
+            # Snapshot current motor-order joint state for safe/hold commands.
+            joint_pos_motor_order = self.joint_pos.copy()
+            joint_vel_motor_order = self.joint_vel.copy()
 
         # Build observation
         obs = self._build_observation()
@@ -391,6 +416,49 @@ class SDK2PolicyRunner:
             # Normalized positions should be near 0 if robot is at default pose
             max_deviation = max(abs(p) for p in joint_pos_norm)
             print(f"  Step {self._debug_counter}: gravity={obs_flat[6:9]}, joint_norm_max={max_deviation:.3f}")
+
+        # If E-stop: publish "limp" command (kp=kd=tau=0).
+        if estop:
+            cmd = self._create_lowcmd()
+            if hasattr(cmd, "head"):
+                cmd.head[0] = 0xFE
+                cmd.head[1] = 0xEF
+            if hasattr(cmd, "level_flag"):
+                cmd.level_flag = 0xFF
+
+            for motor_idx in range(self.num_joints):
+                cmd.motor_cmd[motor_idx].mode = 0x01
+                cmd.motor_cmd[motor_idx].q = float(joint_pos_motor_order[motor_idx])
+                cmd.motor_cmd[motor_idx].dq = 0.0
+                cmd.motor_cmd[motor_idx].kp = 0.0
+                cmd.motor_cmd[motor_idx].kd = 0.0
+                cmd.motor_cmd[motor_idx].tau = 0.0
+
+            self.cmd_pub.Write(cmd)
+            return
+
+        # If not enabled: publish "hold current pose" command with modest gains.
+        if not enabled:
+            cmd = self._create_lowcmd()
+            if hasattr(cmd, "head"):
+                cmd.head[0] = 0xFE
+                cmd.head[1] = 0xEF
+            if hasattr(cmd, "level_flag"):
+                cmd.level_flag = 0xFF
+
+            for motor_idx in range(self.num_joints):
+                policy_idx = self._motor_to_policy[motor_idx]
+                kp = float(self.metadata.joint_stiffness[policy_idx]) * float(self._hold_kp_scale)
+                kd = float(self.metadata.joint_damping[policy_idx]) * float(self._hold_kp_scale)
+                cmd.motor_cmd[motor_idx].mode = 0x01
+                cmd.motor_cmd[motor_idx].q = float(joint_pos_motor_order[motor_idx])
+                cmd.motor_cmd[motor_idx].dq = 0.0
+                cmd.motor_cmd[motor_idx].kp = kp
+                cmd.motor_cmd[motor_idx].kd = kd
+                cmd.motor_cmd[motor_idx].tau = 0.0
+
+            self.cmd_pub.Write(cmd)
+            return
 
         # Run inference - actions are in POLICY joint order
         actions = self.session.run(None, {self.input_name: obs})[0][0]

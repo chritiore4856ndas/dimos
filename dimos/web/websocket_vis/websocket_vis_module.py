@@ -28,12 +28,12 @@ import time
 from typing import Any
 import webbrowser
 
-from dimos_lcm.std_msgs import Bool  # type: ignore[import-untyped]
 from reactivex.disposable import Disposable
 import socketio  # type: ignore[import-untyped]
 from starlette.applications import Starlette
 from starlette.responses import FileResponse, RedirectResponse, Response
-from starlette.routing import Route
+from starlette.routing import Mount, Route
+from starlette.staticfiles import StaticFiles
 import uvicorn
 
 from dimos.utils.data import get_data
@@ -52,6 +52,7 @@ from dimos.mapping.occupancy.inflation import simple_inflate
 from dimos.mapping.types import LatLon
 from dimos.msgs.geometry_msgs import PoseStamped, Twist, TwistStamped, Vector3
 from dimos.msgs.nav_msgs import OccupancyGrid, Path
+from dimos_lcm.std_msgs import Bool  # type: ignore[import-untyped]
 from dimos.utils.logging_config import setup_logger
 
 from .optimized_costmap import OptimizedCostmapEncoder
@@ -94,6 +95,8 @@ class WebsocketVisModule(Module):
     stop_explore_cmd: Out[Bool]
     cmd_vel: Out[Twist]
     movecmd_stamped: Out[TwistStamped]
+    policy_enable: Out[Bool]
+    policy_estop: Out[Bool]
 
     def __init__(
         self,
@@ -234,21 +237,43 @@ class WebsocketVisModule(Module):
             return FileResponse(_DASHBOARD_HTML, media_type="text/html")
 
         async def serve_command_center(request):  # type: ignore[no-untyped-def]
-            """Serve the command center 2D visualization (built React app)."""
-            index_file = get_data("command_center.html")
-            if index_file.exists():
-                return FileResponse(index_file, media_type="text/html")
-            else:
-                return Response(
-                    content="Command center not built. Run: cd dimos/web/command-center-extension && npm install && npm run build:standalone",
-                    status_code=503,
-                    media_type="text/plain",
-                )
+            """Serve the command center 2D visualization.
 
-        routes = [
+            Prefer the Vite standalone build under `_COMMAND_CENTER_DIR` (dist-standalone),
+            but fall back to the legacy single-file `data/command_center.html` if present.
+            """
+            built_index = _COMMAND_CENTER_DIR / "index.html"
+            if built_index.exists():
+                return FileResponse(built_index, media_type="text/html")
+
+            legacy_index = get_data("command_center.html")
+            if legacy_index.exists():
+                return FileResponse(legacy_index, media_type="text/html")
+
+            return Response(
+                content=(
+                    "Command center not built.\n"
+                    "Run: cd dimos/web/command-center-extension && npm install && npm run build:standalone"
+                ),
+                status_code=503,
+                media_type="text/plain",
+            )
+
+        routes: list[Any] = [
             Route("/", serve_index),
             Route("/command-center", serve_command_center),
         ]
+
+        # Serve Vite-built static assets (index.html references /assets/*).
+        assets_dir = _COMMAND_CENTER_DIR / "assets"
+        if assets_dir.exists():
+            routes.append(
+                Mount(
+                    "/assets",
+                    app=StaticFiles(directory=str(assets_dir)),
+                    name="command_center_assets",
+                )
+            )
 
         starlette_app = Starlette(routes=routes)
 
@@ -343,6 +368,21 @@ class WebsocketVisModule(Module):
                     ),
                 )
                 self.movecmd_stamped.publish(twist_stamped)
+
+        @self.sio.event  # type: ignore[untyped-decorator]
+        async def safety_command(sid: str, data: dict[str, Any]) -> None:
+            """Safety/arming commands from the Command Center UI.
+
+            Expected payload:
+              { enabled: bool, estop: bool }
+            """
+            enabled = bool(data.get("enabled", False))
+            estop = bool(data.get("estop", False))
+
+            if self.policy_enable and self.policy_enable.transport:
+                self.policy_enable.publish(Bool(data=enabled))
+            if self.policy_estop and self.policy_estop.transport:
+                self.policy_estop.publish(Bool(data=estop))
 
     def _run_uvicorn_server(self) -> None:
         config = uvicorn.Config(
