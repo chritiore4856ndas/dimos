@@ -85,6 +85,7 @@ misc = [
     "cerebras-cloud-sdk",
     "yapf==0.40.2",
     "typeguard",
+    "annotation-protocol>=1.4.0",
     "empy==3.3.4",
     "catkin_pkg",
     "lark",
