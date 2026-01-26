@@ -124,9 +124,9 @@ def test_subscribe_all_with_typed_messages(lcm_typed: LCM) -> None:
     quat = Quaternion(0.0, 0.0, 0.0, 1.0)
     pose = Pose(vec, quat)
 
-    lcm_typed.publish(Topic("/sensor/position", lcm_type=Vector3), vec)
-    lcm_typed.publish(Topic("/sensor/orientation", lcm_type=Quaternion), quat)
-    lcm_typed.publish(Topic("/robot/pose", lcm_type=Pose), pose)
+    lcm_typed.publish(Topic("/sensor/position", Vector3), vec)
+    lcm_typed.publish(Topic("/sensor/orientation", Quaternion), quat)
+    lcm_typed.publish(Topic("/robot/pose", Pose), pose)
 
     time.sleep(0.1)
 
