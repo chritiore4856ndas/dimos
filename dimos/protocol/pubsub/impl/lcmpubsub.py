@@ -171,7 +171,11 @@ class LCMPubSubBase(LCMService, AllPubSub[Topic, Any]):
             def handler(channel: str, msg: bytes) -> None:
                 callback(msg, Topic.from_channel_str(channel, topic.lcm_type))
 
-            lcm_subscription = self.l.subscribe(str(topic), handler)
+            pattern_str = str(topic)
+            if not pattern_str.endswith("*"):
+                pattern_str = f"{pattern_str}(#.*)?"
+
+            lcm_subscription = self.l.subscribe(pattern_str, handler)
         else:
             topic_str = str(topic) if isinstance(topic, Topic) else topic
             lcm_subscription = self.l.subscribe(topic_str, lambda _, msg: callback(msg, topic))
