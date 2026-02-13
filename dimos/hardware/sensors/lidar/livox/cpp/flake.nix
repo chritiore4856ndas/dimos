@@ -45,7 +45,7 @@
           pname = "mid360_native";
           version = "0.1.0";
 
-          src = ./cpp;
+          src = ./.;
 
           nativeBuildInputs = [ pkgs.cmake pkgs.pkg-config ];
           buildInputs = [ livox-sdk2 pkgs.lcm pkgs.glib ];
@@ -54,11 +54,6 @@
             "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
             "-DFETCHCONTENT_SOURCE_DIR_DIMOS_LCM=${dimos-lcm}"
           ];
-
-          installPhase = ''
-            mkdir -p $out/bin
-            cp mid360_native $out/bin/
-          '';
         };
       in {
         packages = {

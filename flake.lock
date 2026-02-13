@@ -106,25 +106,6 @@
         "type": "github"
       }
     },
-    "livox-sdk": {
-      "inputs": {
-        "flake-utils": [
-          "flake-utils"
-        ],
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "path": "./dimos/hardware/sensors/lidar/livox",
-        "type": "path"
-      },
-      "original": {
-        "path": "./dimos/hardware/sensors/lidar/livox",
-        "type": "path"
-      },
-      "parent": []
-    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1748929857,
@@ -146,7 +127,6 @@
         "diagon": "diagon",
         "flake-utils": "flake-utils",
         "lib": "lib",
-        "livox-sdk": "livox-sdk",
         "nixpkgs": "nixpkgs",
         "xome": "xome"
       }

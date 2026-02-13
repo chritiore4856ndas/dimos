@@ -5,6 +5,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/result" CACHE PATH "" FORCE)
+endif()
+
 # OpenMP for parallel processing
 find_package(OpenMP QUIET)
 if(OpenMP_CXX_FOUND)
@@ -96,3 +100,5 @@ endif()
 target_link_directories(fastlio2_native PRIVATE
   ${LCM_LIBRARY_DIRS}
 )
+
+install(TARGETS fastlio2_native DESTINATION bin)

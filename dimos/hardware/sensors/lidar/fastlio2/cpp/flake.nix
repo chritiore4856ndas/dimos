@@ -4,7 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    livox-sdk.url = "path:../../livox";
+    livox-sdk.url = "path:../../livox/cpp";
     livox-sdk.inputs.nixpkgs.follows = "nixpkgs";
     livox-sdk.inputs.flake-utils.follows = "flake-utils";
     dimos-lcm = {
@@ -46,11 +46,6 @@
             "-DFETCHCONTENT_SOURCE_DIR_DIMOS_LCM=${dimos-lcm}"
             "-DFASTLIO_DIR=${fast-lio}"
           ];
-
-          installPhase = ''
-            mkdir -p $out/bin
-            cp fastlio2_native $out/bin/
-          '';
         };
       in {
         packages = {

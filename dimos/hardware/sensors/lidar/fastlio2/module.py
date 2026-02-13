@@ -38,7 +38,7 @@ from dimos.core.native_module import NativeModule, NativeModuleConfig
 from dimos.msgs.nav_msgs.Odometry import Odometry  # noqa: TC001
 from dimos.msgs.sensor_msgs.PointCloud2 import PointCloud2  # noqa: TC001
 
-_DEFAULT_EXECUTABLE = str(Path(__file__).parent / "cpp" / "build" / "fastlio2_native")
+_DEFAULT_EXECUTABLE = str(Path(__file__).parent / "cpp" / "result" / "bin" / "fastlio2_native")
 _CONFIG_DIR = Path(__file__).parent / "config"
 
 

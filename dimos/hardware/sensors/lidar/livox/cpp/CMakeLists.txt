@@ -4,6 +4,10 @@ project(livox_mid360_native CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/result" CACHE PATH "" FORCE)
+endif()
+
 # Fetch dimos-lcm for C++ message headers
 include(FetchContent)
 FetchContent_Declare(dimos_lcm
@@ -43,3 +47,5 @@ target_link_libraries(mid360_native PRIVATE
 target_link_directories(mid360_native PRIVATE
   ${LCM_LIBRARY_DIRS}
 )
+
+install(TARGETS mid360_native DESTINATION bin)

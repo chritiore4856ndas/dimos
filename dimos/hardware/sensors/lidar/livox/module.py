@@ -40,7 +40,7 @@ from dimos.msgs.sensor_msgs.Imu import Imu  # noqa: TC001
 from dimos.msgs.sensor_msgs.PointCloud2 import PointCloud2  # noqa: TC001
 from dimos.spec import perception
 
-_DEFAULT_EXECUTABLE = str(Path(__file__).parent / "cpp" / "build" / "mid360_native")
+_DEFAULT_EXECUTABLE = str(Path(__file__).parent / "cpp" / "result" / "bin" / "mid360_native")
 
 
 @dataclass(kw_only=True)

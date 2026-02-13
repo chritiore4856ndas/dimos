@@ -80,11 +80,11 @@
         ]
       },
       "locked": {
-        "path": "../../livox",
+        "path": "../../livox/cpp",
         "type": "path"
       },
       "original": {
-        "path": "../../livox",
+        "path": "../../livox/cpp",
         "type": "path"
       },
       "parent": []
