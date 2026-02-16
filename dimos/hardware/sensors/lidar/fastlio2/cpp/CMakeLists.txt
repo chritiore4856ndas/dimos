@@ -62,7 +62,7 @@ pkg_check_modules(LCM REQUIRED lcm)
 find_package(Eigen3 REQUIRED)
 
 # PCL (only components we need — avoid full PCL which drags in VTK via io)
-find_package(PCL 1.8 REQUIRED COMPONENTS common filters)
+find_package(PCL 1.8 REQUIRED COMPONENTS common filters surface)
 
 # yaml-cpp (FAST-LIO config parsing — standard YAML format)
 find_package(yaml-cpp REQUIRED)

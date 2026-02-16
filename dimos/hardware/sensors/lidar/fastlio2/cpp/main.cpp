@@ -412,7 +412,11 @@ int main(int argc, char** argv) {
     // Global voxel map (only if map topic is configured AND map_freq > 0)
     std::unique_ptr<VoxelMap> global_map;
     std::chrono::microseconds map_interval{0};
-    auto last_map_publish = std::chrono::steady_clock::now();
+    auto last_map_cycle = std::chrono::steady_clock::now();
+    PointCloudXYZI::Ptr map_accum_cloud(new PointCloudXYZI());
+    int map_accum_frames = 0;
+    double map_insert_time_sum = 0.0;
+    int map_insert_count = 0;
     if (!g_map_topic.empty() && map_freq > 0.0f) {
         global_map = std::make_unique<VoxelMap>(map_voxel_size, map_max_range);
         map_interval = std::chrono::microseconds(
@@ -476,18 +480,37 @@ int main(int argc, char** argv) {
                     last_pc_publish = now;
                 }
 
-                // Global map: insert, prune, and publish at map_freq
+                // Global map: accumulate frames, hull-clear + insert + publish at map_freq
                 if (global_map) {
-                    global_map->insert<PointType>(filtered);
+                    *map_accum_cloud += *filtered;
+                    map_accum_frames++;
 
-                    if (now - last_map_publish >= map_interval) {
+                    if (now - last_map_cycle >= map_interval) {
+                        auto t0 = std::chrono::high_resolution_clock::now();
+                        global_map->hull_clear_and_insert<PointType>(map_accum_cloud);
+                        auto t1 = std::chrono::high_resolution_clock::now();
+
+                        double insert_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+                        map_insert_time_sum += insert_ms;
+                        map_insert_count++;
+
+                        printf("[fastlio2] map insert: %d frames, %zu pts, %.1f ms (avg %.1f ms), map %zu voxels\n",
+                               map_accum_frames,
+                               map_accum_cloud->size(),
+                               insert_ms,
+                               map_insert_time_sum / map_insert_count,
+                               global_map->size());
+
+                        map_accum_cloud->clear();
+                        map_accum_frames = 0;
+
                         global_map->prune(
                             static_cast<float>(pose[0]),
                             static_cast<float>(pose[1]),
                             static_cast<float>(pose[2]));
                         auto map_cloud = global_map->to_cloud<PointType>();
                         publish_lidar(map_cloud, ts, g_map_topic);
-                        last_map_publish = now;
+                        last_map_cycle = now;
                     }
                 }
             }

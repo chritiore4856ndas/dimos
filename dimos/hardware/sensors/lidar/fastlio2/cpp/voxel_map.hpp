@@ -3,8 +3,7 @@
 //
 // Efficient global voxel map using a hash map.
 // Supports O(1) insert/update, distance-based pruning, and
-// raycasting-based free space clearing via Amanatides & Woo 3D DDA.
-// FOV is discovered dynamically from incoming point cloud data.
+// convex hull-based clearing for scan integration.
 
 #ifndef VOXEL_MAP_HPP_
 #define VOXEL_MAP_HPP_
@@ -12,9 +11,11 @@
 #include <cmath>
 #include <cstdint>
 #include <unordered_map>
+#include <vector>
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/surface/convex_hull.h>
 
 struct VoxelKey {
     int32_t x, y, z;
@@ -35,14 +36,6 @@ struct Voxel {
     float x, y, z;       // running centroid
     float intensity;
     uint32_t count;       // points merged into this voxel
-    uint8_t miss_count;   // consecutive scans where a ray passed through without hitting
-};
-
-/// Config for raycast-based free space clearing.
-struct RaycastConfig {
-    int subsample = 4;        // raycast every Nth point
-    int max_misses = 3;       // erase after this many consecutive misses
-    float fov_margin_rad = 0.035f;  // ~2° safety margin added to discovered FOV
 };
 
 class VoxelMap {
@@ -53,7 +46,6 @@ public:
     }
 
     /// Insert a point cloud into the map, merging into existing voxels.
-    /// Resets miss_count for hit voxels.
     template <typename PointT>
     void insert(const typename pcl::PointCloud<PointT>::Ptr& cloud) {
         if (!cloud) return;
@@ -75,55 +67,118 @@ public:
                 v.z = (v.z * n + pt.z) / n1;
                 v.intensity = (v.intensity * n + pt.intensity) / n1;
                 v.count++;
-                v.miss_count = 0;
             } else {
-                map_.emplace(key, Voxel{pt.x, pt.y, pt.z, pt.intensity, 1, 0});
+                map_.emplace(key, Voxel{pt.x, pt.y, pt.z, pt.intensity, 1});
             }
         }
     }
 
-    /// Cast rays from sensor origin through each point in the cloud.
-    /// Discovers the sensor FOV from the cloud's elevation angle range,
-    /// then marks intermediate voxels as missed and erases those exceeding
-    /// the miss threshold within the discovered FOV.
-    ///
-    /// Orientation quaternion (qx,qy,qz,qw) is body→world.
+    /// Clear all voxels inside the convex hull of the given cloud, then insert it.
+    /// Computes the 3D convex hull, extracts outward-facing facet planes, and
+    /// deletes any existing voxel whose centroid lies inside all half-planes.
     template <typename PointT>
-    void raycast_clear(float ox, float oy, float oz,
-                       float qx, float qy, float qz, float qw,
-                       const typename pcl::PointCloud<PointT>::Ptr& cloud,
-                       const RaycastConfig& cfg) {
-        if (!cloud || cloud->empty() || cfg.max_misses <= 0) return;
-
-        // Phase 0: discover FOV from this scan's elevation angles in sensor-local frame
-        update_fov<PointT>(ox, oy, oz, qx, qy, qz, qw, cloud);
-
-        // Skip raycasting until we have a valid FOV (need at least a few scans)
-        if (!fov_valid_) return;
-
-        float inv = 1.0f / voxel_size_;
-        int n_pts = static_cast<int>(cloud->size());
-        float fov_up = fov_up_ + cfg.fov_margin_rad;
-        float fov_down = fov_down_ - cfg.fov_margin_rad;
-
-        // Phase 1: walk rays, increment miss_count for intermediate voxels
-        for (int i = 0; i < n_pts; i += cfg.subsample) {
-            const auto& pt = cloud->points[i];
-            raycast_single(ox, oy, oz, pt.x, pt.y, pt.z, inv);
+    void hull_clear_and_insert(const typename pcl::PointCloud<PointT>::Ptr& cloud) {
+        if (!cloud || cloud->size() < 4) {
+            // Need at least 4 non-coplanar points for a 3D hull
+            insert<PointT>(cloud);
+            return;
         }
 
-        // Phase 2: erase voxels that exceeded miss threshold and are within FOV
+        // Compute 3D convex hull
+        pcl::ConvexHull<PointT> hull;
+        hull.setInputCloud(cloud);
+        hull.setDimension(3);
+
+        typename pcl::PointCloud<PointT>::Ptr hull_vertices(new pcl::PointCloud<PointT>());
+        std::vector<pcl::Vertices> hull_polygons;
+        hull.reconstruct(*hull_vertices, hull_polygons);
+
+        if (hull_polygons.empty() || hull_vertices->empty()) {
+            insert<PointT>(cloud);
+            return;
+        }
+
+        // Compute hull centroid for orienting normals outward
+        float cx = 0, cy = 0, cz = 0;
+        for (const auto& pt : hull_vertices->points) {
+            cx += pt.x; cy += pt.y; cz += pt.z;
+        }
+        float inv_n = 1.0f / static_cast<float>(hull_vertices->size());
+        cx *= inv_n; cy *= inv_n; cz *= inv_n;
+
+        // Extract facet planes: each polygon → outward normal + offset
+        struct Plane {
+            float nx, ny, nz, d;  // normal (outward) and dot(normal, vertex)
+        };
+
+        std::vector<Plane> planes;
+        planes.reserve(hull_polygons.size());
+
+        for (const auto& polygon : hull_polygons) {
+            if (polygon.vertices.size() < 3) continue;
+
+            const auto& p0 = hull_vertices->points[polygon.vertices[0]];
+            const auto& p1 = hull_vertices->points[polygon.vertices[1]];
+            const auto& p2 = hull_vertices->points[polygon.vertices[2]];
+
+            // Two edges from p0
+            float e1x = p1.x - p0.x, e1y = p1.y - p0.y, e1z = p1.z - p0.z;
+            float e2x = p2.x - p0.x, e2y = p2.y - p0.y, e2z = p2.z - p0.z;
+
+            // Cross product
+            float nx = e1y * e2z - e1z * e2y;
+            float ny = e1z * e2x - e1x * e2z;
+            float nz = e1x * e2y - e1y * e2x;
+
+            // Normalize
+            float len = std::sqrt(nx * nx + ny * ny + nz * nz);
+            if (len < 1e-10f) continue;
+            nx /= len;
+            ny /= len;
+            nz /= len;
+
+            // Ensure normal points outward (away from centroid)
+            float to_centroid_x = cx - p0.x;
+            float to_centroid_y = cy - p0.y;
+            float to_centroid_z = cz - p0.z;
+            if (nx * to_centroid_x + ny * to_centroid_y + nz * to_centroid_z > 0) {
+                nx = -nx; ny = -ny; nz = -nz;
+            }
+
+            planes.push_back({nx, ny, nz, nx * p0.x + ny * p0.y + nz * p0.z});
+        }
+
+        if (planes.empty()) {
+            insert<PointT>(cloud);
+            return;
+        }
+
+        // Delete voxels whose centroids are inside the hull.
+        // Inside = dot(normal, centroid) <= d for ALL facets.
+        size_t cleared = 0;
         for (auto it = map_.begin(); it != map_.end();) {
-            if (it->second.miss_count > static_cast<uint8_t>(cfg.max_misses)) {
-                if (in_sensor_fov(ox, oy, oz, qx, qy, qz, qw,
-                                  it->second.x, it->second.y, it->second.z,
-                                  fov_up, fov_down)) {
-                    it = map_.erase(it);
-                    continue;
+            const auto& v = it->second;
+            bool inside = true;
+            for (const auto& pl : planes) {
+                if (pl.nx * v.x + pl.ny * v.y + pl.nz * v.z > pl.d) {
+                    inside = false;
+                    break;
                 }
             }
-            ++it;
+            if (inside) {
+                it = map_.erase(it);
+                ++cleared;
+            } else {
+                ++it;
+            }
         }
+
+        if (cleared > 0) {
+            printf("[voxel_map] hull_clear: %zu facets, cleared %zu voxels, map size %zu\n",
+                   planes.size(), cleared, map_.size());
+        }
+
+        insert<PointT>(cloud);
     }
 
     /// Remove voxels farther than max_range from the given position.
@@ -159,139 +214,11 @@ public:
     size_t size() const { return map_.size(); }
     void clear() { map_.clear(); }
     void set_max_range(float r) { max_range_ = r; }
-    float fov_up_deg() const { return fov_up_ * 180.0f / static_cast<float>(M_PI); }
-    float fov_down_deg() const { return fov_down_ * 180.0f / static_cast<float>(M_PI); }
-    bool fov_valid() const { return fov_valid_; }
 
 private:
     std::unordered_map<VoxelKey, Voxel, VoxelKeyHash> map_;
     float voxel_size_;
     float max_range_;
-
-    // Dynamically discovered sensor FOV (accumulated over scans)
-    float fov_up_ = -static_cast<float>(M_PI);    // start narrow, expand from data
-    float fov_down_ = static_cast<float>(M_PI);
-    int fov_scan_count_ = 0;
-    bool fov_valid_ = false;
-    static constexpr int FOV_WARMUP_SCANS = 5;  // require N scans before trusting FOV
-
-    /// Update discovered FOV from a scan's elevation angles in sensor-local frame.
-    template <typename PointT>
-    void update_fov(float ox, float oy, float oz,
-                    float qx, float qy, float qz, float qw,
-                    const typename pcl::PointCloud<PointT>::Ptr& cloud) {
-        // Inverse quaternion for world→sensor rotation
-        float nqx = -qx, nqy = -qy, nqz = -qz;
-
-        for (const auto& pt : cloud->points) {
-            float wx = pt.x - ox, wy = pt.y - oy, wz = pt.z - oz;
-
-            // Rotate to sensor-local frame
-            float tx = 2.0f * (nqy * wz - nqz * wy);
-            float ty = 2.0f * (nqz * wx - nqx * wz);
-            float tz = 2.0f * (nqx * wy - nqy * wx);
-            float lx = wx + qw * tx + (nqy * tz - nqz * ty);
-            float ly = wy + qw * ty + (nqz * tx - nqx * tz);
-            float lz = wz + qw * tz + (nqx * ty - nqy * tx);
-
-            float horiz_dist = std::sqrt(lx * lx + ly * ly);
-            if (horiz_dist < 1e-6f) continue;
-            float elevation = std::atan2(lz, horiz_dist);
-
-            if (elevation > fov_up_) fov_up_ = elevation;
-            if (elevation < fov_down_) fov_down_ = elevation;
-        }
-
-        if (++fov_scan_count_ >= FOV_WARMUP_SCANS && !fov_valid_) {
-            fov_valid_ = true;
-            printf("[voxel_map] FOV discovered: [%.1f, %.1f] deg\n",
-                   fov_down_deg(), fov_up_deg());
-        }
-    }
-
-    /// Amanatides & Woo 3D DDA: walk from (ox,oy,oz) to (px,py,pz),
-    /// incrementing miss_count for all intermediate voxels.
-    void raycast_single(float ox, float oy, float oz,
-                        float px, float py, float pz, float inv) {
-        float dx = px - ox, dy = py - oy, dz = pz - oz;
-        float len = std::sqrt(dx * dx + dy * dy + dz * dz);
-        if (len < 1e-6f) return;
-        dx /= len; dy /= len; dz /= len;
-
-        int32_t cx = static_cast<int32_t>(std::floor(ox * inv));
-        int32_t cy = static_cast<int32_t>(std::floor(oy * inv));
-        int32_t cz = static_cast<int32_t>(std::floor(oz * inv));
-        int32_t ex = static_cast<int32_t>(std::floor(px * inv));
-        int32_t ey = static_cast<int32_t>(std::floor(py * inv));
-        int32_t ez = static_cast<int32_t>(std::floor(pz * inv));
-
-        int sx = (dx >= 0) ? 1 : -1;
-        int sy = (dy >= 0) ? 1 : -1;
-        int sz = (dz >= 0) ? 1 : -1;
-
-        // tMax: parametric distance along ray to next voxel boundary per axis
-        // tDelta: parametric distance to cross one full voxel per axis
-        float tMaxX = (std::abs(dx) < 1e-10f) ? 1e30f
-            : (((dx > 0 ? cx + 1 : cx) * voxel_size_ - ox) / dx);
-        float tMaxY = (std::abs(dy) < 1e-10f) ? 1e30f
-            : (((dy > 0 ? cy + 1 : cy) * voxel_size_ - oy) / dy);
-        float tMaxZ = (std::abs(dz) < 1e-10f) ? 1e30f
-            : (((dz > 0 ? cz + 1 : cz) * voxel_size_ - oz) / dz);
-
-        float tDeltaX = (std::abs(dx) < 1e-10f) ? 1e30f : std::abs(voxel_size_ / dx);
-        float tDeltaY = (std::abs(dy) < 1e-10f) ? 1e30f : std::abs(voxel_size_ / dy);
-        float tDeltaZ = (std::abs(dz) < 1e-10f) ? 1e30f : std::abs(voxel_size_ / dz);
-
-        // Walk through voxels (skip endpoint — it was hit)
-        int max_steps = static_cast<int>(len * inv) + 3;  // safety bound
-        for (int step = 0; step < max_steps; ++step) {
-            if (cx == ex && cy == ey && cz == ez) break;  // reached endpoint
-
-            VoxelKey key{cx, cy, cz};
-            auto it = map_.find(key);
-            if (it != map_.end() && it->second.miss_count < 255) {
-                it->second.miss_count++;
-            }
-
-            // Step to next voxel on the axis with smallest tMax
-            if (tMaxX < tMaxY && tMaxX < tMaxZ) {
-                cx += sx; tMaxX += tDeltaX;
-            } else if (tMaxY < tMaxZ) {
-                cy += sy; tMaxY += tDeltaY;
-            } else {
-                cz += sz; tMaxZ += tDeltaZ;
-            }
-        }
-    }
-
-    /// Check if a voxel centroid falls within the sensor's vertical FOV.
-    /// Rotates the vector (sensor→voxel) into sensor-local frame using the
-    /// inverse of the body→world quaternion, then checks elevation angle.
-    static bool in_sensor_fov(float ox, float oy, float oz,
-                              float qx, float qy, float qz, float qw,
-                              float vx, float vy, float vz,
-                              float fov_up_rad, float fov_down_rad) {
-        // Vector from sensor origin to voxel in world frame
-        float wx = vx - ox, wy = vy - oy, wz = vz - oz;
-
-        // Rotate by quaternion inverse (conjugate): q* = (-qx,-qy,-qz,qw)
-        float nqx = -qx, nqy = -qy, nqz = -qz;
-        // t = 2 * cross(q.xyz, v)
-        float tx = 2.0f * (nqy * wz - nqz * wy);
-        float ty = 2.0f * (nqz * wx - nqx * wz);
-        float tz = 2.0f * (nqx * wy - nqy * wx);
-        // v' = v + qw * t + cross(q.xyz, t)
-        float lx = wx + qw * tx + (nqy * tz - nqz * ty);
-        float ly = wy + qw * ty + (nqz * tx - nqx * tz);
-        float lz = wz + qw * tz + (nqx * ty - nqy * tx);
-
-        // Elevation angle in sensor-local frame
-        float horiz_dist = std::sqrt(lx * lx + ly * ly);
-        if (horiz_dist < 1e-6f) return true;  // directly above/below, treat as in FOV
-        float elevation = std::atan2(lz, horiz_dist);
-
-        return elevation >= fov_down_rad && elevation <= fov_up_rad;
-    }
 };
 
 #endif
