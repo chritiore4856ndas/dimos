@@ -637,7 +637,12 @@ class ManipulationModule(Module):
             get_data("models_graspgen")
 
             docker_file = (
-                DIMOS_PROJECT_ROOT / "dimos" / "manipulation" / "grasping" / "docker_context" / "Dockerfile"
+                DIMOS_PROJECT_ROOT
+                / "dimos"
+                / "manipulation"
+                / "grasping"
+                / "docker_context"
+                / "Dockerfile"
             )
 
             # Auto-mount host directory for visualization output when enabled.
