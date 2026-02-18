@@ -15,7 +15,8 @@ echo "Running pre-commit checks"
 time pre-commit run --all-files
 
 echo "Running mypy checks"
-time uv run mypy --python-version 3.10 --python-version 3.12 dimos
+time uv run mypy --python-version 3.10 dimos
+time uv run mypy --python-version 3.12 dimos
 
 echo "# "
 echo "# "
