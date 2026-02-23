@@ -107,7 +107,7 @@ fi
 echo ""
 echo -e "${YELLOW}Building Docker image with docker compose...${NC}"
 echo "This will take a while as it needs to:"
-echo "  - Download base ROS ${ROS_DISTRO^} image"
+echo "  - Download base ROS ${ROS_DISTRO} image"
 echo "  - Install ROS packages and dependencies"
 echo "  - Build the autonomy stack (arise_slam + FASTLIO2)"
 echo "  - Build Livox-SDK2 for Mid-360 lidar"
