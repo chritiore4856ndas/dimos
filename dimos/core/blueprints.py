@@ -20,7 +20,7 @@ from functools import cached_property, reduce
 import operator
 import sys
 from types import MappingProxyType
-from typing import Any, Literal, Self, get_args, get_origin, get_type_hints
+from typing import Any, Literal, get_args, get_origin, get_type_hints
 
 from dimos.core.global_config import GlobalConfig, global_config
 from dimos.core.module import Module, ModuleBase, ModuleSpec, is_module_type
@@ -30,6 +30,11 @@ from dimos.core.transport import LCMTransport, PubSubTransport, pLCMTransport
 from dimos.spec.utils import Spec, is_spec, spec_annotation_compliance, spec_structural_compliance
 from dimos.utils.generic import short_id
 from dimos.utils.logging_config import setup_logger
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing import Any as Self
 
 logger = setup_logger()
 
