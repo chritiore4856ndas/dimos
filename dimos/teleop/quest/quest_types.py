@@ -94,16 +94,18 @@ class QuestControllerState:
 class Buttons(UInt32):
     """Packed button states for both controllers in a single UInt32.
 
-    All values are collapsed to bools for lightweight transport. Analog values
-    (trigger, grip) are thresholded at 0.5. If you need the original float
-    values, access them from QuestControllerState and publish them in a subclass.
+    Digital buttons are collapsed to bools. Analog trigger values are packed
+    as uint8 in the upper 16 bits for proportional gripper control.
 
     Bit layout:
-        Left  (bits 0-6): trigger, grip, touchpad, thumbstick, primary, secondary, menu
-        Right (bits 8-14): trigger, grip, touchpad, thumbstick, primary, secondary, menu
+        Left  (bits 0-6):   trigger, grip, touchpad, thumbstick, primary, secondary, menu
+        Right (bits 8-14):  trigger, grip, touchpad, thumbstick, primary, secondary, menu
+        Bit 7, 15:          reserved
+        Bits 16-23:         left trigger analog (uint8, 0=0.0 … 255=1.0)
+        Bits 24-31:         right trigger analog (uint8, 0=0.0 … 255=1.0)
     """
 
-    # Bit positions
+    # Bit positions for digital buttons
     BITS = {
         "left_trigger": 0,
         "left_grip": 1,
@@ -120,6 +122,31 @@ class Buttons(UInt32):
         "right_secondary": 13,
         "right_menu": 14,
     }
+
+    # Analog trigger packing constants
+    _LEFT_TRIGGER_SHIFT: int = 16
+    _RIGHT_TRIGGER_SHIFT: int = 24
+    _ANALOG_MASK: int = 0xFF
+
+    @property
+    def left_trigger_analog(self) -> float:
+        """Left trigger analog value [0.0, 1.0], decoded from bits 16-23."""
+        return ((self.data & 0xFFFFFFFF) >> self._LEFT_TRIGGER_SHIFT & self._ANALOG_MASK) / 255.0
+
+    @property
+    def right_trigger_analog(self) -> float:
+        """Right trigger analog value [0.0, 1.0], decoded from bits 24-31."""
+        return ((self.data & 0xFFFFFFFF) >> self._RIGHT_TRIGGER_SHIFT & self._ANALOG_MASK) / 255.0
+
+    def pack_analog_triggers(self, left: float, right: float) -> None:
+        """Pack analog trigger values [0.0, 1.0] into bits 16-23 and 24-31."""
+        left_u8 = round(max(0.0, min(1.0, left)) * 255)
+        right_u8 = round(max(0.0, min(1.0, right)) * 255)
+        unsigned = (self.data & 0x0000FFFF) | (left_u8 << self._LEFT_TRIGGER_SHIFT) | (right_u8 << self._RIGHT_TRIGGER_SHIFT)
+        # LCM encodes UInt32 as signed int32 — convert to avoid overflow
+        if unsigned >= 0x80000000:
+            unsigned -= 0x100000000
+        self.data = unsigned
 
     def __getattr__(self, name: str) -> bool:
         if name in Buttons.BITS:
