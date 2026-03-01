@@ -71,6 +71,7 @@ from dimos.core.module import Module
 from dimos.core.module_coordinator import ModuleCoordinator
 from dimos.core.stream import In, Out
 from dimos.core.transport import LCMTransport
+from dimos.utils.data import get_data
 from dimos.msgs.geometry_msgs import (
     PoseStamped,
     Quaternion,
@@ -186,36 +187,16 @@ class ROSNavConfig(DockerModuleConfig):
                 "/usr/local/bin/dimos_module_entrypoint.sh",
                 "ro",
             ),
-            # Mount Unity environment (map.pwly, traversable_area.ply, etc.) into the ROS workspace
+            # Mount CMU VLA Challenge Unity sim (office_2) — downloaded via get_data / LFS
+            # Provides map.ply, traversable_area.ply and environment/Model.x86_64
             (
-                str(
-                    repo_root
-                    / "docker"
-                    / "navigation"
-                    / "ros-navigation-autonomy-stack"
-                    / "src"
-                    / "base_autonomy"
-                    / "vehicle_simulator"
-                    / "mesh"
-                    / "unity"
-                ),
+                str(get_data("sims/cmu_unity_sim_x86")),
                 "/ros2_ws/src/ros-navigation-autonomy-stack/src/base_autonomy/vehicle_simulator/mesh/unity/",
                 "rw",
             ),
-            # the original codebase doesn't have this and the bagfile case complains about it being missing
-            # so we just put the unity one in there as "real_world"
+            # real_world uses the same sim data
             (
-                str(
-                    repo_root
-                    / "docker"
-                    / "navigation"
-                    / "ros-navigation-autonomy-stack"
-                    / "src"
-                    / "base_autonomy"
-                    / "vehicle_simulator"
-                    / "mesh"
-                    / "unity"
-                ),
+                str(get_data("sims/cmu_unity_sim_x86")),
                 "/ros2_ws/src/ros-navigation-autonomy-stack/src/base_autonomy/vehicle_simulator/mesh/real_world/",
                 "rw",
             ),
