@@ -1,87 +1,66 @@
 #!/bin/bash
-echo '
-source /opt/ros/${ROS_DISTRO:-humble}/setup.bash
-source /ros2_ws/install/setup.bash
-source /opt/dimos-venv/bin/activate
-rosspy
-' > /usr/bin/ross
-chmod +x /usr/bin/ross
 
-source /opt/dimos-venv/bin/activate
-
-# Minimal CMU Unity simulation entrypoint.
-# Purpose: bring up Unity + ROS nav stack and keep retrying until Unity sensor
-# topics are actually registered in ROS.
-
-# Intentionally no `set -e`: transient bridge failures are expected and retried.
+MODE="${MODE:-unity_sim}"
+USE_ROUTE_PLANNER="${USE_ROUTE_PLANNER:-true}"
+LOCALIZATION_METHOD="${LOCALIZATION_METHOD:-arise_slam}"
+USE_RVIZ="${USE_RVIZ:-false}"
 
 STACK_ROOT="/ros2_ws/src/ros-navigation-autonomy-stack"
 UNITY_EXECUTABLE="${STACK_ROOT}/src/base_autonomy/vehicle_simulator/mesh/unity/environment/Model.x86_64"
 UNITY_MESH_DIR="${STACK_ROOT}/src/base_autonomy/vehicle_simulator/mesh/unity"
 
-MODE="${MODE:-unity_sim}"
-USE_ROUTE_PLANNER="${USE_ROUTE_PLANNER:-true}"
-LOCALIZATION_METHOD="${LOCALIZATION_METHOD:-arise_slam}"
 
 UNITY_BRIDGE_CONNECT_TIMEOUT_SEC="${UNITY_BRIDGE_CONNECT_TIMEOUT_SEC:-25}"
 UNITY_BRIDGE_RETRY_INTERVAL_SEC="${UNITY_BRIDGE_RETRY_INTERVAL_SEC:-2}"
 
-ROS_NAV_PID=""
-UNITY_PID=""
-
-cleanup() {
-    if [ -n "$ROS_NAV_PID" ] && kill -0 "$ROS_NAV_PID" 2>/dev/null; then
-        kill -TERM "-$ROS_NAV_PID" 2>/dev/null || kill -TERM "$ROS_NAV_PID" 2>/dev/null || true
-        sleep 1
-        kill -KILL "-$ROS_NAV_PID" 2>/dev/null || kill -KILL "$ROS_NAV_PID" 2>/dev/null || true
-    fi
-
-    if [ -n "$UNITY_PID" ] && kill -0 "$UNITY_PID" 2>/dev/null; then
-        kill -TERM "$UNITY_PID" 2>/dev/null || true
-        sleep 1
-        kill -KILL "$UNITY_PID" 2>/dev/null || true
-    fi
-}
-trap cleanup EXIT INT TERM
-
+# 
+# Source 
+# 
 echo "[entrypoint-min] Sourcing ROS env..."
 source /opt/ros/${ROS_DISTRO:-humble}/setup.bash
 source /ros2_ws/install/setup.bash
+source /opt/dimos-venv/bin/activate
 
-# Restore small shell helpers expected in this environment.
-cat > /usr/bin/upp <<'EOS'
-#!/bin/bash
-source /opt/ros/${ROS_DISTRO:-humble}/setup.bash
-source /ros2_ws/install/setup.bash
-[ -f /opt/dimos-venv/bin/activate ] && source /opt/dimos-venv/bin/activate
-EOS
-chmod +x /usr/bin/upp
+# 
+# cli helpers (when connecting to docker)
+# 
 
+# rosspy
 cat > /usr/bin/rosspy <<'EOS'
 #!/bin/bash
 source /opt/ros/${ROS_DISTRO:-humble}/setup.bash
 source /ros2_ws/install/setup.bash
-[ -f /opt/dimos-venv/bin/activate ] && source /opt/dimos-venv/bin/activate
-if [ -f /workspace/dimos/bin/rosspy.pyz ]; then
-    exec python3 /workspace/dimos/bin/rosspy.pyz "$@"
-else
-    exec python3 -m dimos.utils.cli.rosspy.run_rosspy "$@"
+source /opt/dimos-venv/bin/activate
+exec python3 -m dimos.utils.cli.rosspy.run_rosspy "$@"
 fi
 EOS
 chmod +x /usr/bin/rosspy
 
-# docker_runner payload mode imports dimos.* modules from Python.
-# Keep this minimal: activate venv if present and ensure /workspace/dimos is
-# importable even when editable install has not been run yet.
-if [ -f "/opt/dimos-venv/bin/activate" ]; then
-    # shellcheck disable=SC1091
-    source /opt/dimos-venv/bin/activate
+# 
+# 
+# 
+# sanity checks and setup
+# 
+#
+# 
+
+# 
+# dimos
+# 
+if ! [ -d "/workspace/dimos" ]; then
+    echo "the dimos codebase must be mounted to /workspace/dimos for the codebase to work"
+    exit 1
 fi
-if [ -d "/workspace/dimos" ]; then
-    export PYTHONPATH="/workspace/dimos:${PYTHONPATH:-}"
+export PYTHONPATH="/workspace/dimos:${PYTHONPATH:-}"
+if ! pip install -e /workspace/dimos >/tmp/dimos_pip_install.log 2>&1; then
+    cat /tmp/dimos_pip_install.log
+    echo "[entrypoint-min] WARNING: pip install -e failed; see /tmp/dimos_pip_install.log"
+    exit 2
 fi
 
-# Keep DDS config minimal and deterministic.
+# 
+# dds config
+# 
 export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 if [ -f "/ros2_ws/config/custom_fastdds.xml" ]; then
     export FASTRTPS_DEFAULT_PROFILES_FILE=/ros2_ws/config/custom_fastdds.xml
@@ -89,9 +68,12 @@ elif [ -f "/ros2_ws/config/fastdds.xml" ]; then
     export FASTRTPS_DEFAULT_PROFILES_FILE=/ros2_ws/config/fastdds.xml
 fi
 
+# 
+# launch setup
+# 
 if [ ! -d "$STACK_ROOT" ]; then
     echo "[entrypoint-min] ERROR: stack root not found: $STACK_ROOT"
-    exit 1
+    exit 3
 fi
 cd "$STACK_ROOT"
 
@@ -106,6 +88,10 @@ if [ "$LOCALIZATION_METHOD" = "fastlio" ]; then
     LAUNCH_ARGS="use_fastlio2:=true ${LAUNCH_ARGS}"
 fi
 
+# 
+# unity sim helpers
+# 
+# complicated because of retry system (needed as an alternative to "sleep 5" and praying its enough)
 start_unity() {
     if [ ! -f "$UNITY_EXECUTABLE" ]; then
         echo "[entrypoint-min] ERROR: Unity executable not found: $UNITY_EXECUTABLE"
@@ -214,34 +200,42 @@ EOM
     done
 }
 
-case "$MODE" in
-    simulation|unity_sim|"")
-        start_unity
-        launch_with_retry
-        ;;
-    *)
-        echo "[entrypoint-min] MODE=$MODE is non-simulation; launching ROS nav stack once."
-        start_ros_nav_stack
-        ;;
-esac
-
-if [ "$MODE" = "simulation" ] || [ "$MODE" = "unity_sim" ] || [ -z "$MODE" ]; then
-    if [ "${USE_RVIZ:-false}" = "true" ]; then
-        ros2 run rviz2 rviz2 -d src/route_planner/far_planner/rviz/default.rviz &
-    fi
+# 
+# 
+# arg simplification
+# 
+# 
+if [ "$MODE" = "unity_sim" ] || [ -z "$MODE" ]; then
+    MODE="simulation"
 fi
 
-# Keep compatibility with DockerModule runner when payload args are provided.
+# 
+# 
+# Main: Mode selection / behavior
+# 
+# 
+if [ "$MODE" = "simulation" ]; then
+    start_unity
+    launch_with_retry
+elif [ "$MODE" = "hardware" ]; then 
+    echo "[entrypoint-min] MODE=$MODE is non-simulation; launching ROS nav stack once."
+    start_ros_nav_stack
+else
+    echo "MODE must be one of: 'simulation' or 'hardware' but got '$MODE'"
+    exit 19
+fi
+
+# 
+# 
+# options
+# 
+# 
+if [ "$USE_RVIZ" = "true" ]; then
+    ros2 run rviz2 rviz2 -d src/route_planner/far_planner/rviz/default.rviz &
+fi
+
+# start module (when being run from )
 if [ "$#" -gt 0 ]; then
-    # If dimos import still fails, do a one-time editable install fallback.
-    if ! python -c "import dimos.navigation.rosnav_docker" >/dev/null 2>&1; then
-        if [ -d "/workspace/dimos" ]; then
-            echo "[entrypoint-min] dimos not importable; running pip install -e /workspace/dimos"
-            pip install -e /workspace/dimos >/tmp/dimos_pip_install.log 2>&1 || {
-                echo "[entrypoint-min] WARNING: pip install -e failed; see /tmp/dimos_pip_install.log"
-            }
-        fi
-    fi
     exec python -m dimos.core.docker_runner run "$@"
 fi
 
