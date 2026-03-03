@@ -384,8 +384,7 @@ class ROSNav(
         )
         self._spin_thread.start()
 
-        # if self.goal_req:
-        #     self.goal_req.subscribe(self._on_goal_pose)
+        self.goal_req.subscribe(self._on_goal_pose)
         logger.info("NavigationModule started with ROS2 spinning")
 
     def _spin_node(self) -> None:
