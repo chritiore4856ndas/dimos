@@ -270,19 +270,27 @@ class ResourceSpyApp(App[None]):
             if not stale:
                 self._cpu_history[role].append(d.get("cpu_percent", 0))
             if i > 0:
-                label = f" {role}: {mods} " if mods else f" {role} "
+                title = Text(" ")
+                title.append(role, style=dim if stale else _LABEL_COLOR)
+                if mods:
+                    title.append(": ", style=dim if stale else _LABEL_COLOR)
+                    title.append(mods, style=dim if stale else rs)
                 if pid:
-                    label = label.rstrip() + f" [{pid}] "
-                title = Text(label, style=dim if stale else rs)
+                    title.append(f" [{pid}]", style=dim if stale else "#777777")
+                title.append(" ")
                 parts.append(Rule(title=title, style=border_style))
             parts.extend(self._make_lines(d, stale, ranges, self._cpu_history[role]))
 
         # First entry title goes on the Panel itself
         first_role, first_rs, _, first_mods, first_pid = entries[0]
-        label = f" {first_role}: {first_mods} " if first_mods else f" {first_role} "
+        panel_title = Text(" ")
+        panel_title.append(first_role, style=dim if stale else _LABEL_COLOR)
+        if first_mods:
+            panel_title.append(": ", style=dim if stale else _LABEL_COLOR)
+            panel_title.append(first_mods, style=dim if stale else first_rs)
         if first_pid:
-            label = label.rstrip() + f" [{first_pid}] "
-        panel_title = Text(label, style=dim if stale else first_rs)
+            panel_title.append(f" [{first_pid}]", style=dim if stale else "#777777")
+        panel_title.append(" ")
 
         panel = Panel(
             Group(*parts),
@@ -442,18 +450,26 @@ def _preview() -> None:
         for j in range(_SPARK_WIDTH * 2):
             hist.append(max(0, min(100, cpu + 20 * math.sin(j * 0.6))))
         if i > 0:
-            label = f" {role}: {mods} " if mods else f" {role} "
+            title = Text(" ")
+            title.append(role, style=_LABEL_COLOR)
+            if mods:
+                title.append(": ", style=_LABEL_COLOR)
+                title.append(mods, style=rs)
             if pid:
-                label = label.rstrip() + f" [{pid}] "
-            title = Text(label, style=rs)
+                title.append(f" [{pid}]", style="#777777")
+            title.append(" ")
             parts.append(Rule(title=title, style=border_style))
         parts.extend(ResourceSpyApp._make_lines(d, stale=False, ranges=ranges, cpu_hist=hist))
 
     first_role, first_rs, _, first_mods, first_pid = entries[0]
-    label = f" {first_role} "
+    panel_title = Text(" ")
+    panel_title.append(first_role, style=_LABEL_COLOR)
+    if first_mods:
+        panel_title.append(": ", style=_LABEL_COLOR)
+        panel_title.append(first_mods, style=first_rs)
     if first_pid:
-        label = label.rstrip() + f" [{first_pid}] "
-    panel_title = Text(label, style=first_rs)
+        panel_title.append(f" [{first_pid}]", style="#777777")
+    panel_title.append(" ")
     Console().print(Panel(Group(*parts), title=panel_title, border_style=border_style))
 
 
