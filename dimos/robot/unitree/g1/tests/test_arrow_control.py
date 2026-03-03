@@ -140,12 +140,12 @@ def main(stdscr):
             # Robot state commands
             elif key_char == "1":
                 draw_ui(stdscr, "Standing up...")
-                conn.standup()
+                conn.stand_up()
                 action = "✓ Standup complete"
                 last_cmd_time = current_time
             elif key_char == "2":
                 draw_ui(stdscr, "Lying down...")
-                conn.liedown()
+                conn.lie_down()
                 action = "✓ Liedown complete"
                 last_cmd_time = current_time
             elif key_char == "r":

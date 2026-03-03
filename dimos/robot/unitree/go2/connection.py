@@ -51,8 +51,8 @@ class Go2ConnectionProtocol(Protocol):
     def odom_stream(self) -> Observable: ...  # type: ignore[type-arg]
     def video_stream(self) -> Observable: ...  # type: ignore[type-arg]
     def move(self, twist: Twist, duration: float = 0.0) -> bool: ...
-    def standup(self) -> bool: ...
-    def liedown(self) -> bool: ...
+    def stand_up(self) -> bool: ...
+    def lie_down(self) -> bool: ...
     def publish_request(self, topic: str, data: dict) -> dict: ...  # type: ignore[type-arg]
 
 
@@ -95,10 +95,10 @@ class ReplayConnection(UnitreeWebRTCConnection):
     def start(self) -> None:
         pass
 
-    def standup(self) -> bool:
+    def stand_up(self) -> bool:
         return True
 
-    def liedown(self) -> bool:
+    def lie_down(self) -> bool:
         return True
 
     @simple_mcache
@@ -221,12 +221,12 @@ class GO2Connection(Module, spec.Camera, spec.Pointcloud):
         )
         self._camera_info_thread.start()
 
-        self.standup()
+        self.stand_up()
         # self.record("go2_bigoffice")
 
     @rpc
     def stop(self) -> None:
-        self.liedown()
+        self.lie_down()
 
         if self.connection:
             self.connection.stop()
@@ -277,14 +277,14 @@ class GO2Connection(Module, spec.Camera, spec.Pointcloud):
         return self.connection.move(twist, duration)
 
     @rpc
-    def standup(self) -> bool:
+    def stand_up(self) -> bool:
         """Make the robot stand up."""
-        return self.connection.standup()
+        return self.connection.stand_up()
 
     @rpc
-    def liedown(self) -> bool:
+    def lie_down(self) -> bool:
         """Make the robot lie down."""
-        return self.connection.liedown()
+        return self.connection.lie_down()
 
     @rpc
     def publish_request(self, topic: str, data: dict[str, Any]) -> dict[Any, Any]:

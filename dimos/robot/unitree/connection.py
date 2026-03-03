@@ -274,10 +274,10 @@ class UnitreeWebRTCConnection(Resource):
     def lowstate_stream(self) -> Observable[LowStateMsg]:
         return backpressure(self.unitree_sub_stream(RTC_TOPIC["LOW_STATE"]))
 
-    def standup(self) -> bool:
+    def stand_up(self) -> bool:
         return bool(self.publish_request(RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["StandUp"]}))
 
-    def liedown(self) -> bool:
+    def lie_down(self) -> bool:
         return bool(
             self.publish_request(RTC_TOPIC["SPORT_MOD"], {"api_id": SPORT_CMD["StandDown"]})
         )

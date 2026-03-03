@@ -71,12 +71,12 @@ def main():
 
             elif cmd == "1":
                 print("🤖 Standing up...")
-                success = conn.standup()
+                success = conn.stand_up()
                 print(f"  {'✓' if success else '✗'} Standup completed")
 
             elif cmd == "2":
                 print("🤖 Lying down...")
-                success = conn.liedown()
+                success = conn.lie_down()
                 print(f"  {'✓' if success else '✗'} Liedown completed")
 
             elif cmd == "3":
