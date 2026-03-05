@@ -8,7 +8,7 @@ Check `questions.md`
 ```
 dimos/memory2/
     __init__.py              # public exports (re-exports from API + default backend)
-    types.py                 # ObservationRef, ObservationRow, Lineage, StreamInfo
+    types.py                 # ObservationRow, Lineage, StreamInfo
     store.py                 # Store ABC (Resource lifecycle)
     session.py               # Session ABC (stream factory)
     stream.py                # StreamBase, BlobStream, EmbeddingStream, TextStream ABCs
@@ -33,23 +33,26 @@ dimos/memory2/
 ### `types.py` — Data classes
 
 ```python
-@dataclass(frozen=True)
-class ObservationRef:
-    stream: str
-    rowid: int
-
 @dataclass
 class ObservationRow:
-    ref: ObservationRef
+    id: int
     ts: float | None = None
-    pose: PoseLike | None = None
-    scores: dict[str, float] = field(default_factory=dict)  # query-time only (from rank/search), not stored
+    pose: PoseStamped | None = None
     tags: dict[str, Any] = field(default_factory=dict)
+    _data: Any = field(default=None, repr=False)
+    _load: Callable[[], Any] | None = field(default=None, repr=False)
+
+    @property
+    def data(self) -> Any:
+        """Lazy payload access. Pre-populated for appended events, fetched on demand for query results."""
+        if self._data is None and self._load is not None:
+            self._data = self._load()
+        return self._data
 
 @dataclass
 class Lineage:
     parent_stream: str | None = None   # from _streams registry (stream-level)
-    parent_rowid: int | None = None    # per-row: which row in parent stream
+    parent_id: int | None = None       # per-row: which row in parent stream
 
 @dataclass
 class StreamInfo:
@@ -78,16 +81,11 @@ PoseProvider = Callable[[], PoseLike | None]
 
 class Session(ABC):
     def stream(self, name: str, payload_type: type, *,
-               retention: str = "run",
                pose_provider: PoseProvider | None = None) -> BlobStream: ...
-    def embedding_stream(self, name: str, payload_type: type, *,
-                         dim: int, retention: str = "run",
-                         parent: StreamBase | None = None,
-                         pose_provider: PoseProvider | None = None) -> EmbeddingStream: ...
+    def embedding_stream(self, name: str, *,
+                         model: EmbeddingModel) -> EmbeddingStream: ...
     def text_stream(self, name: str, payload_type: type, *,
                     tokenizer: str = "unicode61",
-                    retention: str = "run",
-                    parent: StreamBase | None = None,
                     pose_provider: PoseProvider | None = None) -> TextStream: ...
     def list_streams(self) -> list[StreamInfo]: ...
     def close(self) -> None: ...
@@ -106,26 +104,34 @@ class StreamBase(ABC, Generic[T]):
                ts: float | None = None,      # defaults to time.time()
                pose: PoseLike | None = None,  # explicit pose overrides provider
                tags: dict[str, Any] | None = None,
-               parent_rowid: int | None = None,
-               ) -> ObservationRef: ...
+               parent_id: int | None = None,
+               ) -> ObservationRow: ...        # returned row has .data pre-populated
+
+    # Reactive
+    @property
+    def appended(self) -> Observable[ObservationRow]: ...  # .data pre-populated
 
     # Read
     def query(self) -> Query[T]: ...
-    def load(self, ref: ObservationRef) -> T: ...
-    def load_many(self, refs: list[ObservationRef], *, batch_size=32) -> list[T]: ...
-    def iter_meta(self, *, page_size=128) -> Iterator[list[ObservationRow]]: ...
+    def load(self, row: ObservationRow) -> T: ...
+    def load_many(self, rows: list[ObservationRow], *, batch_size=32) -> list[T]: ...
     def count(self) -> int: ...
-
-    # Introspection
-    def meta(self, ref: ObservationRef) -> ObservationRow: ...
 
 class BlobStream(StreamBase[T]):
     """Stream for arbitrary serializable payloads. No special indexes."""
 
 class EmbeddingStream(StreamBase[T]):
     """Stream with vector index. No payload table — the vector IS the data."""
-    def vector(self, ref: ObservationRef) -> list[float] | None: ...
-    # load() not supported — use vector() instead
+    model: EmbeddingModel
+
+    def attach(self, parent: StreamBase) -> Self:
+        """Sets lineage parent + subscribes to parent.appended to auto-embed."""
+        # parent.appended.pipe(
+        #     ops.map(lambda row: self._embed_and_store(row)),
+        # ).subscribe()
+        ...
+
+    def vector(self, row: ObservationRow) -> list[float] | None: ...
 
 class TextStream(StreamBase[T]):
     """Stream with FTS index."""
@@ -141,15 +147,12 @@ class Query(ABC, Generic[T]):
     def after(self, t: float) -> Query[T]: ...
 
     def filter_tags(self, **tags: Any) -> Query[T]: ...
-    def filter_refs(self, refs: list[ObservationRef]) -> Query[T]: ...
     def at(self, t: float, *, tolerance: float = 1.0) -> Query[T]: ...
 
     # Candidate generation (raise TypeError if stream lacks the required index)
     def search_text(self, text: str, *, candidate_k: int | None = None) -> Query[T]: ...
     def search_embedding(self, vector: list[float], *, candidate_k: int) -> Query[T]: ...
 
-    # Ranking + ordering + limit
-    def rank(self, **weights: float) -> Query[T]: ...
     def order_by(self, field: str, *, desc: bool = False) -> Query[T]: ...
     def limit(self, k: int) -> Query[T]: ...
 
@@ -171,9 +174,8 @@ class ObservationSet(ABC, Generic[T]):
     def query(self) -> Query[T]: ...
 
     # Read
-    def load(self, ref: ObservationRef) -> T: ...
-    def load_many(self, refs, *, batch_size=32) -> list[T]: ...
-    def refs(self, *, limit=None) -> list[ObservationRef]: ...
+    def load(self, row: ObservationRow) -> T: ...
+    def load_many(self, rows, *, batch_size=32) -> list[T]: ...
     def rows(self, *, limit=None) -> list[ObservationRow]: ...
     def one(self) -> ObservationRow: ...
     def fetch_page(self, *, limit=128, offset=0) -> list[ObservationRow]: ...
@@ -214,14 +216,13 @@ CREATE TABLE _streams (
     name TEXT UNIQUE NOT NULL,
     type TEXT NOT NULL,           -- 'blob', 'embedding', 'text'
     payload_type TEXT NOT NULL,
-    parent_stream_id INTEGER,     -- FK to _streams.rowid (lineage)
-    retention TEXT DEFAULT 'run'
+    parent_stream_id INTEGER      -- FK to _streams.rowid (lineage)
 );
 ```
 
 ### `stream.py` — SqliteBlobStream, SqliteEmbeddingStream, SqliteTextStream
 
-`append()` inserts a metadata row (SQLite auto-assigns `rowid`), serializes payload into `_payload`, and inserts an R*Tree entry if pose is provided. `EmbeddingStream.append()` inserts into `_vec` only (no `_payload`). `TextStream.append()` inserts into both `_payload` (as TEXT) and `_fts`. Returns `ObservationRef(stream, rowid)`.
+`append()` inserts a metadata row (SQLite auto-assigns `rowid`), serializes payload into `_payload`, and inserts an R*Tree entry if pose is provided. `EmbeddingStream.append()` inserts into `_vec` only (no `_payload`). `TextStream.append()` inserts into both `_payload` (as TEXT) and `_fts`. Returns `ObservationRow` with `id`, `ts`, `pose`, `tags` populated.
 
 ### `query.py` — SqliteQuery
 
@@ -332,10 +333,10 @@ All virtual table rowids match `_meta.rowid` directly.
 ### API-level
 
 - **Poses**: all pose params accept `PoseLike` (`Pose | PoseStamped | Point | PointStamped`). No custom pose type.
-- **ObservationRef identity**: `rowid` is auto-assigned integer. `ObservationRef(stream, rowid)` is globally unique within a session.
+- **Row identity**: `id` is auto-assigned integer per stream. Unique within a stream. Impl layer maps to SQLite `rowid`.
 - **Unlocalized observations**: rows without pose excluded from `filter_near()` by default. `include_unlocalized=True` to include them.
 - **Stream hierarchy**: `StreamBase` (ABC) → `BlobStream`, `EmbeddingStream`, `TextStream`. Indexing is determined by stream type, not config.
-- **Lineage**: parent stream defined at stream level (in `_streams` registry). Per-row `parent_rowid` links to specific row in parent.
+- **Lineage**: parent stream defined at stream level (in `_streams` registry). Per-row `parent_id` links to specific row in parent.
 
 ### SQLite-specific
 
