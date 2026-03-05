@@ -169,7 +169,7 @@ class TestModuleCoordinatorDockerRouting:
         # start() is NOT called during deploy — it's called in start_all_modules
         mock_dm.start.assert_not_called()
 
-        # Results are in original order
+        # Results are worker-first, then docker
         assert results[0] is regular_proxy
         assert results[1] is mock_dm
 

@@ -190,9 +190,9 @@ class DockerModule(ModuleProxyProtocol):
         self._kwargs = kwargs
         self._running = False
         self.remote_name = module_class.__name__
-        # Derive container name from image name: "my-registry/foo:v2" → "dimos_foo"
-        image_base = config.docker_image.rsplit(":", 1)[0].rsplit("/", 1)[-1]
-        self._container_name = config.docker_container_name or f"dimos_{image_base}"
+        # Derive container name from image name: "my-registry/foo:v2" → "dimos_foo_v2"
+        image_ref = config.docker_image.rsplit("/", 1)[-1]
+        self._container_name = config.docker_container_name or f"dimos_{image_ref.replace(':', '_')}"
 
         self.rpc = LCMRPC()
         self.rpcs = set(module_class.rpcs.keys())  # type: ignore[attr-defined]

@@ -97,21 +97,25 @@ class ModuleCoordinator(Resource):  # type: ignore[misc]
         docker_specs = [spec for spec in module_specs if is_docker_module(spec[0])]
         worker_specs = [spec for spec in module_specs if not is_docker_module(spec[0])]
 
-        worker_results = self._client.deploy_parallel(worker_specs) if worker_specs else []
+        worker_results: list[Any] = []
         docker_results: list[Any] = []
-        if docker_specs:
-            with ThreadPoolExecutor(max_workers=len(docker_specs)) as executor:
-                docker_results = list(
-                    executor.map(
-                        lambda spec: DockerModule(spec[0], *spec[1], **spec[2]), docker_specs
+        try:
+            worker_results = self._client.deploy_parallel(worker_specs) if worker_specs else []
+            if docker_specs:
+                with ThreadPoolExecutor(max_workers=len(docker_specs)) as executor:
+                    docker_results = list(
+                        executor.map(
+                            lambda spec: DockerModule(spec[0], *spec[1], **spec[2]), docker_specs
+                        )
                     )
-                )
+        finally:
+            results = worker_results + docker_results
+            # Register whatever succeeded so stop() can clean them up
+            for (module_class, _, _), module in zip(
+                worker_specs + docker_specs, results, strict=False
+            ):
+                self._deployed_modules[module_class] = module
 
-        results = worker_results + docker_results
-        for (module_class, _, _), module in zip(
-            worker_specs + docker_specs, results, strict=True
-        ):
-            self._deployed_modules[module_class] = module
         return results
 
     def start_all_modules(self) -> None:
