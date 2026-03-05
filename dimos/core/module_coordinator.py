@@ -27,7 +27,7 @@ from dimos.utils.logging_config import setup_logger
 if TYPE_CHECKING:
     from dimos.core.module import Module, ModuleT
     from dimos.core.resource_monitor.monitor import StatsMonitor
-    from dimos.core.rpc_client import ModuleProxy
+    from dimos.core.rpc_client import ModuleProxy, ModuleProxyProtocol
 
 logger = setup_logger()
 
@@ -37,7 +37,7 @@ class ModuleCoordinator(Resource):  # type: ignore[misc]
     _global_config: GlobalConfig
     _n: int | None = None
     _memory_limit: str = "auto"
-    _deployed_modules: dict[type[Module], ModuleProxy]
+    _deployed_modules: dict[type[Module], ModuleProxyProtocol]
     _stats_monitor: StatsMonitor | None = None
 
     def __init__(
@@ -79,14 +79,14 @@ class ModuleCoordinator(Resource):  # type: ignore[misc]
     def deploy(self, module_class: type[ModuleT], *args, **kwargs) -> ModuleProxy:  # type: ignore[no-untyped-def]
         if not self._client:
             raise ValueError("Trying to dimos.deploy before the client has started")
-        
-        deployed_module : ModuleProxy
+
+        deployed_module: ModuleProxyProtocol
         if is_docker_module(module_class):
             deployed_module = DockerModule(module_class, *args, **kwargs)
         else:
             deployed_module = self._client.deploy(module_class, *args, **kwargs)
         self._deployed_modules[module_class] = deployed_module
-        return deployed_module
+        return deployed_module  # type: ignore[return-value]
 
     def deploy_parallel(
         self, module_specs: list[tuple[type[ModuleT], tuple[Any, ...], dict[str, Any]]]

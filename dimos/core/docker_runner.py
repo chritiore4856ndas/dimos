@@ -25,7 +25,7 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from dimos.core.module import ModuleConfig
-from dimos.core.rpc_client import RpcCall, ModuleProxy
+from dimos.core.rpc_client import ModuleProxyProtocol, RpcCall
 from dimos.protocol.rpc import LCMRPC
 from dimos.utils.logging_config import setup_logger
 from dimos.visualization.rerun.bridge import RERUN_GRPC_PORT, RERUN_WEB_PORT
@@ -161,7 +161,7 @@ def _extract_module_config(cfg: DockerModuleConfig) -> dict[str, Any]:
 # Host-side Docker-backed Module handle
 
 
-class DockerModule(ModuleProxy):
+class DockerModule(ModuleProxyProtocol):
     """
     Host-side handle for a module running inside Docker.
 
@@ -171,13 +171,17 @@ class DockerModule(ModuleProxy):
 
     Communication: All RPC happens via LCM multicast (requires --network=host).
     """
-    config : DockerModuleConfig
+    config: DockerModuleConfig
 
     def __init__(self, module_class: type[Module], *args: Any, **kwargs: Any) -> None:
         from dimos.core.docker_build import build_image, image_exists
 
         config_class = getattr(module_class, "default_config", DockerModuleConfig)
-        assert issubclass(config_class, DockerModuleConfig)
+        if not issubclass(config_class, DockerModuleConfig):
+            raise TypeError(
+                f"{module_class.__name__}.default_config must be a DockerModuleConfig subclass, "
+                f"got {config_class.__name__}"
+            )
         config = config_class(**kwargs)
 
         self._module_class = module_class
@@ -196,7 +200,7 @@ class DockerModule(ModuleProxy):
         self._unsub_fns: list[Callable[[], None]] = []
         self._bound_rpc_calls: dict[str, RpcCall] = {}
 
-        # Build image, launch container, wait for RPC server — mirrors worker Module.__init__
+        # Build or pull image, launch container, wait for RPC server
         try:
             if not image_exists(config):
                 if config.docker_file is not None:
@@ -269,9 +273,6 @@ class DockerModule(ModuleProxy):
 
     def stop(self) -> None:
         """Gracefully stop the Docker container and clean up resources."""
-        if not self._running:
-            return
-
         with suppress(Exception):
             self.rpc.call_nowait(f"{self.remote_name}/stop", ([], {}))
         with suppress(Exception):
@@ -280,9 +281,10 @@ class DockerModule(ModuleProxy):
             with suppress(Exception):
                 unsub()
         self._unsub_fns.clear()
-
-        _run([_docker_bin(self.config), "stop", self._container_name], timeout=DOCKER_STOP_TIMEOUT)
-        _remove_container(self.config, self._container_name)
+        with suppress(Exception):
+            _run([_docker_bin(self.config), "stop", self._container_name], timeout=DOCKER_STOP_TIMEOUT)
+        with suppress(Exception):
+            _remove_container(self.config, self._container_name)
         self._running = False
         logger.info(f"Stopped container: {self._container_name}")
 
