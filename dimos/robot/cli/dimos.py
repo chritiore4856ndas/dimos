@@ -115,6 +115,7 @@ def run(
 
     from dimos.core.blueprints import autoconnect
     from dimos.core.run_registry import (
+        LOG_BASE_DIR,
         RunEntry,
         check_port_conflicts,
         cleanup_stale,
@@ -149,8 +150,6 @@ def run(
 
     # Route structured logs (main.jsonl) to the per-run directory.
     # Workers inherit DIMOS_RUN_LOG_DIR env var via forkserver.
-    from dimos.utils.logging_config import set_run_log_dir
-
     set_run_log_dir(log_dir)
 
     blueprint = autoconnect(*map(get_by_name, robot_types))
