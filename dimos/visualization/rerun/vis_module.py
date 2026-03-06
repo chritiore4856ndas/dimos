@@ -17,9 +17,8 @@
 
 from typing import Any
 
-from dimos.core.blueprints import autoconnect
+from dimos.core.blueprints import Blueprint, autoconnect
 from dimos.core.global_config import ViewerBackend
-from dimos.core.module import Module
 from dimos.protocol.pubsub.impl.lcmpubsub import LCM
 
 
@@ -27,7 +26,7 @@ def viz_module(
     viewer_backend: ViewerBackend,
     rerun_config: dict[str, Any] | None = None,
     foxglove_config: dict[str, Any] | None = None,
-) -> Module:
+) -> Blueprint:
     """
     Example usage:
         from dimos.core.global_config import global_config
