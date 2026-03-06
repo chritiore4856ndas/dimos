@@ -20,12 +20,13 @@ import os
 
 import pytest
 
+from dimos.utils import logging_config
+from dimos.utils.logging_config import _get_log_file_path, get_run_log_dir, set_run_log_dir
+
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
     """Remove DIMOS_RUN_LOG_DIR from env and reset module globals between tests."""
-    from dimos.utils import logging_config
-
     monkeypatch.delenv("DIMOS_RUN_LOG_DIR", raising=False)
     monkeypatch.setattr(logging_config, "_RUN_LOG_DIR", None)
     monkeypatch.setattr(logging_config, "_LOG_FILE_PATH", None)
@@ -35,22 +36,16 @@ class TestSetRunLogDir:
     """set_run_log_dir() configures per-run logging."""
 
     def test_creates_directory(self, tmp_path):
-        from dimos.utils.logging_config import set_run_log_dir
-
         log_dir = tmp_path / "run-001"
         set_run_log_dir(log_dir)
         assert log_dir.is_dir()
 
     def test_sets_env_var(self, tmp_path):
-        from dimos.utils.logging_config import set_run_log_dir
-
         log_dir = tmp_path / "run-002"
         set_run_log_dir(log_dir)
         assert os.environ["DIMOS_RUN_LOG_DIR"] == str(log_dir)
 
     def test_get_run_log_dir_returns_path(self, tmp_path):
-        from dimos.utils.logging_config import get_run_log_dir, set_run_log_dir
-
         log_dir = tmp_path / "run-003"
         set_run_log_dir(log_dir)
         assert get_run_log_dir() == log_dir
@@ -60,16 +55,12 @@ class TestLogFilePathRouting:
     """_get_log_file_path() routes to per-run directory when set."""
 
     def test_routes_to_run_dir(self, tmp_path):
-        from dimos.utils.logging_config import _get_log_file_path, set_run_log_dir
-
         log_dir = tmp_path / "run-004"
         set_run_log_dir(log_dir)
         path = _get_log_file_path()
         assert path == log_dir / "main.jsonl"
 
     def test_routes_via_env_var(self, tmp_path, monkeypatch):
-        from dimos.utils import logging_config
-
         monkeypatch.setattr(logging_config, "_RUN_LOG_DIR", None)
         monkeypatch.setattr(logging_config, "_LOG_FILE_PATH", None)
 
@@ -81,8 +72,6 @@ class TestLogFilePathRouting:
         assert env_dir.is_dir()
 
     def test_falls_back_to_legacy(self, tmp_path, monkeypatch):
-        from dimos.utils import logging_config
-
         monkeypatch.setattr(logging_config, "_RUN_LOG_DIR", None)
         monkeypatch.setattr(logging_config, "_LOG_FILE_PATH", None)
         monkeypatch.delenv("DIMOS_RUN_LOG_DIR", raising=False)

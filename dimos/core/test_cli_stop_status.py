@@ -58,6 +58,9 @@ def sleeper():
     for p in procs:
         try:
             p.kill()
+        except OSError:
+            pass  # already dead
+        try:
             p.wait(timeout=2)
         except Exception:
             pass

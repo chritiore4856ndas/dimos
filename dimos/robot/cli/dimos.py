@@ -103,9 +103,6 @@ def run(
     ctx: typer.Context,
     robot_types: list[str] = typer.Argument(..., help="Blueprints or modules to run"),
     daemon: bool = typer.Option(False, "--daemon", "-d", help="Run in background"),
-    health_timeout: float = typer.Option(
-        30.0, "--health-timeout", help="Seconds to monitor workers before daemonizing"
-    ),
 ) -> None:
     """Start a robot blueprint"""
     from datetime import datetime, timezone
@@ -163,7 +160,7 @@ def run(
         )
 
         # Health check before daemonizing — catch early crashes
-        if not health_check(coordinator, timeout=health_timeout):
+        if not health_check(coordinator):
             typer.echo("Error: health check failed — a worker process died.", err=True)
             coordinator.stop()
             raise typer.Exit(1)

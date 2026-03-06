@@ -50,11 +50,16 @@ class ModuleCoordinator(Resource):  # type: ignore[misc]
         self._deployed_modules = {}
 
     @property
+    def workers(self) -> list:
+        """Active worker processes."""
+        if self._client is None:
+            return []
+        return self._client.workers
+
+    @property
     def n_workers(self) -> int:
         """Number of active workers."""
-        if self._client is None:
-            return 0
-        return len(self._client.workers)
+        return len(self.workers)
 
     @property
     def n_modules(self) -> int:

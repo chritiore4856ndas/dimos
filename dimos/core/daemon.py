@@ -19,7 +19,6 @@ from __future__ import annotations
 import os
 import signal
 import sys
-import time
 from typing import TYPE_CHECKING
 
 from dimos.utils.logging_config import setup_logger
@@ -36,49 +35,20 @@ logger = setup_logger()
 # Health check
 # ---------------------------------------------------------------------------
 
-_DEFAULT_HEALTH_TIMEOUT: float = 30.0
-_POLL_INTERVAL: float = 0.25
 
+def health_check(coordinator: ModuleCoordinator) -> bool:
+    """Verify all coordinator workers are alive after build.
 
-def health_check(
-    coordinator: ModuleCoordinator,
-    timeout: float = _DEFAULT_HEALTH_TIMEOUT,
-    poll_interval: float = _POLL_INTERVAL,
-) -> bool:
-    """Poll coordinator workers until *timeout*, return True if all stay alive.
-
-    The check fails immediately when any worker's ``pid`` becomes ``None``
-    (meaning the underlying process exited).  It also fails if there are
-    zero workers (nothing to monitor).
+    Since ``blueprint.build()`` is synchronous, every module should be
+    started by the time this runs.  We just confirm no worker has died.
     """
-    client = coordinator._client
-    if client is None:
-        logger.error("health_check: coordinator has no WorkerManager")
-        return False
-
-    workers = client.workers
-    if not workers:
+    if coordinator.n_workers == 0:
         logger.error("health_check: no workers found")
         return False
 
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        for w in workers:
-            if w.pid is None:
-                logger.error(
-                    "health_check: worker died",
-                    worker_id=w.worker_id,
-                )
-                return False
-        time.sleep(poll_interval)
-
-    # Final check after timeout elapsed
-    for w in workers:
+    for w in coordinator.workers:
         if w.pid is None:
-            logger.error(
-                "health_check: worker died at deadline",
-                worker_id=w.worker_id,
-            )
+            logger.error("health_check: worker died", worker_id=w.worker_id)
             return False
 
     return True

@@ -21,7 +21,6 @@ from pathlib import Path
 import re
 import signal
 import sys
-import time
 from unittest import mock
 
 import pytest
@@ -175,99 +174,48 @@ from dimos.core.daemon import health_check
 
 
 def _mock_worker(pid: int | None = 1234, worker_id: int = 0):
-    """Create a mock Worker with a controllable pid property."""
+    """Create a mock Worker with a controllable pid."""
     w = mock.MagicMock()
-    w.pid = pid
     w.worker_id = worker_id
+    w.pid = pid
     return w
 
 
 def _mock_coordinator(workers: list | None = None):
-    """Create a mock ModuleCoordinator with mock WorkerManager."""
+    """Create a mock ModuleCoordinator with controllable workers/n_workers."""
     coord = mock.MagicMock()
     if workers is not None:
-        coord._client.workers = workers
+        coord.workers = workers
+        coord.n_workers = len(workers)
     else:
-        coord._client = None
+        coord.workers = []
+        coord.n_workers = 0
     return coord
 
 
-class TestHealthCheckAllHealthy:
-    """test_health_check_all_healthy — mock workers with alive PIDs → passes."""
+class TestHealthCheck:
+    """health_check verifies all workers are alive after synchronous build."""
 
-    def test_health_check_all_healthy(self):
+    def test_all_healthy(self):
         workers = [_mock_worker(pid=os.getpid(), worker_id=i) for i in range(3)]
         coord = _mock_coordinator(workers)
+        assert health_check(coord) is True
 
-        result = health_check(coord, timeout=0.5, poll_interval=0.1)
-        assert result is True
+    def test_dead_worker(self):
+        dead = _mock_worker(pid=None, worker_id=0)
+        coord = _mock_coordinator([dead])
+        assert health_check(coord) is False
 
-
-class TestHealthCheckImmediateDeath:
-    """test_health_check_immediate_death — worker with pid=None → fails immediately."""
-
-    def test_health_check_immediate_death(self):
-        dead_worker = _mock_worker(pid=None, worker_id=0)
-        coord = _mock_coordinator([dead_worker])
-
-        start = time.monotonic()
-        result = health_check(coord, timeout=5.0, poll_interval=0.1)
-        elapsed = time.monotonic() - start
-
-        assert result is False
-        # Should fail almost immediately, not wait for the full timeout
-        assert elapsed < 1.0
-
-
-class TestHealthCheckDelayedDeath:
-    """test_health_check_delayed_death — worker alive initially, then pid → None."""
-
-    def test_health_check_delayed_death(self):
-        worker = _mock_worker(pid=os.getpid(), worker_id=0)
-
-        # After a few accesses, pid becomes None (simulating delayed crash)
-        call_count = 0
-        real_pid = os.getpid()
-
-        def pid_getter():
-            nonlocal call_count
-            call_count += 1
-            if call_count > 3:
-                return None
-            return real_pid
-
-        type(worker).pid = mock.PropertyMock(side_effect=pid_getter)
-        coord = _mock_coordinator([worker])
-
-        result = health_check(coord, timeout=5.0, poll_interval=0.05)
-        assert result is False
-
-
-class TestHealthCheckNoWorkers:
-    """test_health_check_no_workers — empty worker list → fails."""
-
-    def test_health_check_no_workers(self):
+    def test_no_workers(self):
         coord = _mock_coordinator(workers=[])
-        result = health_check(coord, timeout=0.5, poll_interval=0.1)
-        assert result is False
+        assert health_check(coord) is False
 
-    def test_health_check_no_client(self):
-        coord = _mock_coordinator(workers=None)  # _client = None
-        result = health_check(coord, timeout=0.5, poll_interval=0.1)
-        assert result is False
-
-
-class TestHealthCheckPartialDeath:
-    """test_health_check_partial_death — 3 workers, 1 dies → fails."""
-
-    def test_health_check_partial_death(self):
+    def test_partial_death(self):
         w1 = _mock_worker(pid=os.getpid(), worker_id=0)
         w2 = _mock_worker(pid=os.getpid(), worker_id=1)
-        w3 = _mock_worker(pid=None, worker_id=2)  # dead
-
+        w3 = _mock_worker(pid=None, worker_id=2)
         coord = _mock_coordinator([w1, w2, w3])
-        result = health_check(coord, timeout=0.5, poll_interval=0.1)
-        assert result is False
+        assert health_check(coord) is False
 
 
 # ---------------------------------------------------------------------------

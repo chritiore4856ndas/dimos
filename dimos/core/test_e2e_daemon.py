@@ -122,7 +122,7 @@ class TestDaemonE2E:
         assert len(workers) == 1
         assert len(coord._deployed_modules) == 2  # PingModule + PongModule
 
-        ok = health_check(coord, timeout=2)
+        ok = health_check(coord)
         assert ok, "Health check should pass with healthy worker"
 
         entry = _make_entry(coord)
@@ -147,7 +147,7 @@ class TestDaemonE2E:
         for w in workers:
             assert w.pid is not None, f"Worker {w.worker_id} has no PID"
 
-        ok = health_check(coord, timeout=2)
+        ok = health_check(coord)
         assert ok, "Health check should pass with 2 healthy workers"
 
         coord.stop()
@@ -164,7 +164,7 @@ class TestDaemonE2E:
         os.kill(worker_pid, signal.SIGKILL)
         time.sleep(0.5)  # let it die
 
-        ok = health_check(coord, timeout=2)
+        ok = health_check(coord)
         assert not ok, "Health check should FAIL after worker killed"
 
         coord.stop()
