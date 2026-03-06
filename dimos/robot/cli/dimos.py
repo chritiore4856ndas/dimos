@@ -261,6 +261,48 @@ def _stop_entry(entry: "RunEntry", force: bool = False) -> None:
 
 
 @main.command()
+def restart(
+    force: bool = typer.Option(False, "--force", "-f", help="Force kill before restarting"),
+    daemon: bool = typer.Option(False, "--daemon", "-d", help="Restart in background"),
+) -> None:
+    """Restart the running DimOS instance with the same arguments."""
+    from dimos.core.run_registry import get_most_recent
+
+    entry = get_most_recent(alive_only=True)
+    if not entry:
+        typer.echo("No running DimOS instance to restart", err=True)
+        raise typer.Exit(1)
+
+    # Save args before stopping (stop removes the entry)
+    blueprint_args = entry.cli_args
+    config_overrides = entry.config_overrides
+
+    typer.echo(f"Restarting {entry.run_id} ({entry.blueprint})...")
+    _stop_entry(entry, force=force)
+
+    # Re-invoke run with saved arguments
+
+    cmd = [sys.executable, "-m", "dimos.robot.cli.dimos"]
+    # Restore config overrides as CLI flags
+    for key, value in config_overrides.items():
+        flag = f"--{key.replace('_', '-')}"
+        if isinstance(value, bool):
+            if value:
+                cmd.append(flag)
+        else:
+            cmd.extend([flag, str(value)])
+    cmd.append("run")
+    if daemon:
+        cmd.append("--daemon")
+    cmd.extend(blueprint_args)
+
+    typer.echo(f"  Running: {' '.join(cmd)}")
+    import os
+
+    os.execvp(cmd[0], cmd)
+
+
+@main.command()
 def show_config(ctx: typer.Context) -> None:
     """Show current config settings and their values."""
 
