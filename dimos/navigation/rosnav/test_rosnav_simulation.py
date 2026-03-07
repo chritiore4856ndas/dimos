@@ -41,7 +41,7 @@ from dimos.core.stream import In
 from dimos.msgs.geometry_msgs import PoseStamped, Twist
 from dimos.msgs.nav_msgs import Path as NavPath
 from dimos.msgs.sensor_msgs import Image, PointCloud2
-from dimos.navigation.rosnav.rosnav_docker import ROSNav
+from dimos.navigation.rosnav.rosnav_module import ROSNav
 
 # Streams that should produce data in simulation mode without sending a goal.
 # The nav stack publishes these as soon as the Unity sim is running.
