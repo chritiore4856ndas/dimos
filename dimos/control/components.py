@@ -155,6 +155,58 @@ def make_quadruped_joints(hardware_id: HardwareId) -> list[JointName]:
     return [f"{hardware_id}_{j}" for j in _QUADRUPED_LEG_JOINTS]
 
 
+_HUMANOID_29DOF_JOINTS = [
+    # Left leg (0-5)
+    "LeftHipPitch",
+    "LeftHipRoll",
+    "LeftHipYaw",
+    "LeftKnee",
+    "LeftAnklePitch",
+    "LeftAnkleRoll",
+    # Right leg (6-11)
+    "RightHipPitch",
+    "RightHipRoll",
+    "RightHipYaw",
+    "RightKnee",
+    "RightAnklePitch",
+    "RightAnkleRoll",
+    # Waist (12-14)
+    "WaistYaw",
+    "WaistRoll",
+    "WaistPitch",
+    # Left arm (15-21)
+    "LeftShoulderPitch",
+    "LeftShoulderRoll",
+    "LeftShoulderYaw",
+    "LeftElbow",
+    "LeftWristRoll",
+    "LeftWristPitch",
+    "LeftWristYaw",
+    # Right arm (22-28)
+    "RightShoulderPitch",
+    "RightShoulderRoll",
+    "RightShoulderYaw",
+    "RightElbow",
+    "RightWristRoll",
+    "RightWristPitch",
+    "RightWristYaw",
+]
+
+
+def make_humanoid_joints(hardware_id: HardwareId) -> list[JointName]:
+    """Create joint names for a 29-DOF humanoid.
+
+    Covers 6-DOF legs, 3-DOF waist, and 7-DOF arms (with wrist).
+
+    Args:
+        hardware_id: The hardware identifier (e.g., "g1")
+
+    Returns:
+        List of 29 joint names like ["g1_LeftHipPitch", ..., "g1_RightWristYaw"]
+    """
+    return [f"{hardware_id}_{j}" for j in _HUMANOID_29DOF_JOINTS]
+
+
 __all__ = [
     "TWIST_SUFFIX_MAP",
     "HardwareComponent",
@@ -164,6 +216,7 @@ __all__ = [
     "JointState",
     "TaskName",
     "make_gripper_joints",
+    "make_humanoid_joints",
     "make_joints",
     "make_quadruped_joints",
     "make_twist_base_joints",

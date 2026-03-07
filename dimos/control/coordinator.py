@@ -278,9 +278,16 @@ class ControlCoordinator(Module[ControlCoordinatorConfig]):
         """Create a whole-body adapter from component config."""
         from dimos.hardware.whole_body.registry import whole_body_adapter_registry
 
+        # Pass address as-is — adapters accept int or str for network_interface
+        addr = component.address
+        if addr is not None:
+            try:
+                addr = int(addr)
+            except ValueError:
+                pass  # keep as string (e.g. "enp60s0")
         return whole_body_adapter_registry.create(
             component.adapter_type,
-            network_interface=int(component.address) if component.address else 0,
+            network_interface=addr if addr is not None else 0,
         )
 
     def _create_task_from_config(self, cfg: TaskConfig) -> ControlTask:
