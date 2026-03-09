@@ -27,7 +27,6 @@ from dimos.memory.transformer import (
 from dimos.models.embedding.base import Embedding
 from dimos.models.embedding.clip import CLIPModel
 from dimos.models.vl.florence import CaptionDetail, Florence2Model
-from dimos.models.vl.moondream import MoondreamVlModel
 from dimos.msgs.sensor_msgs.Image import Image
 from dimos.msgs.sensor_msgs.PointCloud2 import PointCloud2
 from dimos.utils.data import get_data
@@ -124,42 +123,30 @@ def test_query_embeddings(session, clip):
 
     embeddings = session.streams.clip_embeddings.search_embedding("supermarket", k=5, model=clip)
 
-    print(embeddings)
-
-    # we can create captions on demand
-    florence = Florence2Model(detail=CaptionDetail.MORE_DETAILED)
-    florence.start()
-
-    caption_query = (
-        session.streams.sharp_images.near(embeddings)
-        .limit(2)
+    # we are precomputing and throwing away this stream
+    captions = (
+        session.streams.sharp_images.near(embeddings)  # spatially near the embedding matches
+        .limit(5)
         .transform(CaptionTransformer(florence))
+        # adding live=True here makes it run the caption transformer live on each new matching embedding
     )
-    florence.stop()
 
-    # we could have also searched in the db (if precomputed)
-    # caption_query = session.streams.captions.near(embeddings)
-
-    print(caption_query)
-
-    captions = caption_query.fetch()
-
-    print(captions.summary())
-
-    for obs in captions:
+    for obs in captions.fetch():
         print(obs.id, obs.data)
 
-    # we can also find all images ever captured near these embeddings (600+ frames)
+    # we can also find all images ever captured spatially near these embeddings (600+ frames)
     images = session.streams.color_image.near(embeddings).fetch()
 
     print(images)
 
-    moondream = MoondreamVlModel()
-    moondream.start()
-
+    # we can also find all sharp images near these embeddings, then transform to detect bottles
+    # sharp images can be loaded from db or computed on demand, here we load from db
     bottles = session.streams.sharp_images.near(embeddings, radius=1.0).transform(
         DetectionTransformer(moondream, query="bottle")
     )
+
+    # if we want to save this we'd do
+    # bottles.save("bottle_detections", Detection2D)
 
     print(bottles)
 

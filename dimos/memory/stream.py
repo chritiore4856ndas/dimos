@@ -576,7 +576,7 @@ class TextStream(Stream[T]):
 
 
 class TransformStream(Stream[R]):
-    """In-memory stream produced by .transform(). Not yet stored."""
+    """In-memory stream produced by .transform(). Backed by ListBackend."""
 
     def __init__(
         self,
@@ -586,11 +586,25 @@ class TransformStream(Stream[R]):
         live: bool = False,
         backfill_only: bool = False,
     ) -> None:
-        super().__init__(backend=None, session=source._session)
+        backend = ListBackend([], name="<transform>")
+        super().__init__(backend=backend, session=source._session)
         self._source = source
         self._transformer = transformer
         self._live = live
         self._backfill_only = backfill_only
+        self._materialized = False
+
+    def _materialize(self) -> None:
+        """Run backfill if not yet done."""
+        if self._materialized:
+            return
+        self._materialized = True
+        if self._transformer.supports_backfill and not self._live:
+            self._transformer.process(self._source, self)
+
+    def _require_backend(self) -> StreamBackend:
+        self._materialize()
+        return super()._require_backend()
 
     def __repr__(self) -> str:
         return rich_text(self).plain
@@ -599,13 +613,11 @@ class TransformStream(Stream[R]):
         return render_text(rich_text(self))
 
     def fetch(self) -> ObservationSet[R]:
-        """Execute transform in memory, collecting results."""
-        collector = _CollectorStream[R]()
-        if self._transformer.supports_backfill and not self._live:
-            self._transformer.process(self._source, collector)
+        self._materialize()
+        backend = cast("ListBackend", self._backend)
         return ObservationSet(
-            collector.results,
-            session=self._source._session,
+            cast("list[Observation[R]]", list(backend._observations)),
+            session=self._session,
             payload_type=self._transformer.output_type,
         )
 
@@ -635,42 +647,13 @@ class TransformStream(Stream[R]):
         )
 
 
-class _CollectorStream(Stream[R]):
-    """Ephemeral stream that collects appended observations in a list."""
-
-    def __init__(self) -> None:
-        super().__init__(backend=None)
-        self.results: list[Observation[R]] = []
-        self._next_id = 0
-
-    def append(
-        self,
-        payload: R,
-        *,
-        ts: float | None = None,
-        pose: PoseLike | None = None,
-        tags: dict[str, Any] | None = None,
-        parent_id: int | None = None,
-    ) -> Observation[R]:
-        obs: Observation[R] = Observation(
-            id=self._next_id,
-            ts=ts if ts is not None else time.time(),
-            pose=pose,
-            tags=tags or {},
-            parent_id=parent_id,
-            _data=payload,
-        )
-        self._next_id += 1
-        self.results.append(obs)
-        return obs
-
-
 class ListBackend:
     """In-memory backend that evaluates StreamQuery filters in Python."""
 
     def __init__(self, observations: list[Observation[Any]], name: str = "<memory>") -> None:
         self._observations = observations
         self._name = name
+        self._next_id = max((o.id for o in observations), default=-1) + 1
         from reactivex.subject import Subject
 
         self._subject: Subject[Observation[Any]] = Subject()  # type: ignore[type-arg]
@@ -739,7 +722,18 @@ class ListBackend:
         tags: dict[str, Any] | None,
         parent_id: int | None = None,
     ) -> Observation[Any]:
-        raise TypeError("ObservationSet is read-only")
+        obs: Observation[Any] = Observation(
+            id=self._next_id,
+            ts=ts if ts is not None else time.time(),
+            pose=pose,
+            tags=tags or {},
+            parent_id=parent_id,
+            _data=payload,
+        )
+        self._next_id += 1
+        self._observations.append(obs)
+        self._subject.on_next(obs)
+        return obs
 
     @property
     def appended_subject(self) -> Subject[Observation[Any]]:  # type: ignore[type-arg]
@@ -775,17 +769,6 @@ class ObservationSet(Stream[T]):
         )
         base._query = self._query
         return base._clone(**overrides)
-
-    def append(
-        self,
-        payload: T,
-        *,
-        ts: float | None = None,
-        pose: PoseLike | None = None,
-        tags: dict[str, Any] | None = None,
-        parent_id: int | None = None,
-    ) -> Observation[T]:
-        raise TypeError("ObservationSet is read-only")
 
     # ── List-like interface ──────────────────────────────────────────
 

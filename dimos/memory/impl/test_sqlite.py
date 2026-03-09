@@ -886,12 +886,14 @@ class TestObservationSet:
         assert len(shapes) == 2
         assert shapes[0].data == f"{images[0].width}x{images[0].height}"
 
-    def test_read_only(self, session: SqliteSession, images: list[Image]) -> None:
+    def test_append(self, session: SqliteSession, images: list[Image]) -> None:
         from dimos.memory.stream import ObservationSet
 
         result = ObservationSet([], session=session)
-        with pytest.raises(TypeError, match="read-only"):
-            result.append(images[0])
+        obs = result.append(images[0], ts=1.0)
+        assert obs.id == 0
+        assert obs.ts == 1.0
+        assert len(result) == 1
 
     def test_ordering_in_memory(self, session: SqliteSession, images: list[Image]) -> None:
         s = session.stream("obs_order", Image)
