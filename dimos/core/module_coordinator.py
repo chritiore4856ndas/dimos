@@ -139,7 +139,7 @@ class ModuleCoordinator(Resource):  # type: ignore[misc]
         # Split by type, tracking original indices for reassembly
         docker_indices: list[int] = []
         worker_indices: list[int] = []
-        docker_specs: list[tuple[type[ModuleT], tuple[Any, ...], dict[str, Any]]] = []
+        docker_specs: list[tuple[type[Module], tuple[Any, ...], dict[str, Any]]] = []
         worker_specs: list[tuple[type[ModuleT], tuple[Any, ...], dict[str, Any]]] = []
         for i, spec in enumerate(module_specs):
             if is_docker_module(spec[0]):
@@ -155,9 +155,10 @@ class ModuleCoordinator(Resource):  # type: ignore[misc]
         def _deploy_workers() -> None:
             if not worker_specs:
                 return
+            assert self._client is not None
             for index, module in zip(
                 worker_indices, self._client.deploy_parallel(worker_specs), strict=False
-            ):  # type: ignore[union-attr]
+            ):
                 results[index] = module
 
         def _deploy_docker() -> None:
@@ -165,7 +166,7 @@ class ModuleCoordinator(Resource):  # type: ignore[misc]
                 return
             for index, module in zip(
                 docker_indices, DockerWorkerManager.deploy_parallel(docker_specs), strict=False
-            ):  # type: ignore[arg-type]
+            ):
                 results[index] = module
 
         def _register() -> None:
