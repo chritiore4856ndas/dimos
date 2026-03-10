@@ -62,7 +62,6 @@ dependencies = [
     "annotation-protocol>=1.4.0",
     "lazy_loader",
     "plum-dispatch==2.5.7",
-
     # Logging
     "structlog>=25.5.0,<26",
     "colorlog==6.9.0",
@@ -86,6 +85,7 @@ dependencies = [
     "toolz>=1.1.0",
     "protobuf>=6.33.5,<7",
     "psutil>=7.0.0",
+    "textual-serve>=1.1.3",
 ]
 
 
