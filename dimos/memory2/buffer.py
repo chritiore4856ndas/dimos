@@ -12,6 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Backpressure buffers — the bridge between push and pull.
+
+Real-world data sources (cameras, LiDAR, ROS topics) and ReactiveX pipelines
+are *push-based*: they emit items whenever they please. Databases, analysis
+systems, and our memory store are *pull-based*: consumers iterate at their own
+pace. A BackpressureBuffer sits between the two, absorbing push bursts so
+that the pull side can drain items on its own schedule.
+
+The choice of strategy controls what happens under load:
+
+- **KeepLast** — single-slot, always overwrites; best for real-time sensor
+  data where only the latest reading matters.
+- **Bounded** — FIFO with a cap; drops the oldest item on overflow.
+- **DropNew** — FIFO with a cap; rejects new items on overflow.
+- **Unbounded** — unlimited FIFO; guarantees delivery at the cost of memory.
+
+All four share the same ABC interface and are interchangeable wherever a
+buffer is accepted (e.g. ``Stream.live(buffer=...)``).
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
