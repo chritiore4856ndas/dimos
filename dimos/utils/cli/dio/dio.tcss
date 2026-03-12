@@ -6,14 +6,14 @@ Screen {
 }
 
 #sidebar {
-    width: 22;
+    width: auto;
     height: 1fr;
     background: $dio-bg;
     padding: 1 0;
 }
 
 .tab-item {
-    width: 100%;
+    width: auto;
     height: 3;
     padding: 1 2;
     content-align: left middle;

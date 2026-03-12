@@ -76,10 +76,11 @@ class LCMSpySubApp(SubApp):
         try:
             from dimos.utils.cli.lcmspy.lcmspy import GraphLCMSpy
 
-            self._spy = GraphLCMSpy(autoconf=True, graph_log_window=0.5)
+            self._spy = GraphLCMSpy(graph_log_window=0.5)
             self._spy.start()
-        except Exception:
-            pass
+        except Exception as e:
+            import traceback
+            self._debug(traceback.format_exc())
 
     def on_unmount_subapp(self) -> None:
         if self._spy:

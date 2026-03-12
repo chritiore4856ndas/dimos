@@ -103,7 +103,6 @@ class ModuleCoordinator(Resource):  # type: ignore[misc]
     def restart_daemon_threads(self) -> None:
         """Re-start threads that were killed by os.fork() during daemonize."""
         if self._stats_monitor is not None:
-            logger.info("Restarting StatsMonitor after daemonize")
             self._stats_monitor.start()
 
     def stop(self) -> None:

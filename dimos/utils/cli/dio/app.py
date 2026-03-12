@@ -36,8 +36,8 @@ if TYPE_CHECKING:
 
     from dimos.utils.cli.dio.sub_app import SubApp
 
-_DUAL_WIDTH = 240  # >= this width: 2 panels
-_TRIPLE_WIDTH = 320  # >= this width: 3 panels
+_DUAL_WIDTH = 140  # >= this width: 2 panels
+_TRIPLE_WIDTH = 220  # >= this width: 3 panels
 _MAX_PANELS = 3
 _QUIT_WINDOW = 1.5  # seconds to press again to confirm quit
 

@@ -165,7 +165,9 @@ class HumanCLISubApp(SubApp):
         self._agent_timeout_timer: Any = None
 
     def compose(self) -> ComposeResult:
-        yield Static("", id="hcli-status-bar")
+        # Show default disconnected status immediately (before on_mount_subapp)
+        label, color = _status_style(_ConnState.DISCONNECTED)
+        yield Static(f"[{color}]● {label}[/{color}]", id="hcli-status-bar")
         with Container(id="hcli-chat"):
             yield RichLog(id="hcli-log", highlight=True, markup=True, wrap=False)
         yield Input(placeholder="Type a message…", id="hcli-input")
@@ -414,6 +416,13 @@ class HumanCLISubApp(SubApp):
             self._add_user_message(log, message)
             self._human_transport.publish(message)
         else:
-            # Transport not ready yet — queue the message
+            # Transport not ready yet — queue the message and tell the user
             self._add_user_message(log, message, queued=True)
             self._enqueue(message)
+            n = len(self._send_queue)
+            bar = self.query_one("#hcli-status-bar", Static)
+            label, color = _status_style(self._conn_state)
+            bar.update(
+                f"[{color}]● {label}[/{color}]"
+                f"  [{theme.DIM}]({n} message{'s' if n != 1 else ''} queued — will send when connected)[/{theme.DIM}]"
+            )

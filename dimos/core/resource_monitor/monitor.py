@@ -94,7 +94,6 @@ class StatsMonitor(Resource):
         from dimos.core.resource_monitor.logger import LCMResourceLogger
 
         if isinstance(self._logger, LCMResourceLogger):
-            logger.info("StatsMonitor.start: re-creating LCMResourceLogger (post-fork safe)")
             self._logger = LCMResourceLogger()
 
         self._stop.clear()

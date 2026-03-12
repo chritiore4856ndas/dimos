@@ -25,5 +25,5 @@ def get_sub_apps() -> list[type[SubApp]]:
         DtopSubApp,
         LCMSpySubApp,
         HumanCLISubApp,
-        AgentSpySubApp,
+        # AgentSpySubApp,
     ]
