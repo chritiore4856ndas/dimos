@@ -163,26 +163,28 @@ replaces them.
 
 ## Implementation Phases
 
-### Phase 1 (done)
-- Routes, HTML shell, auto-launch spy tools via textual-serve, `/api/services`
+### Phase 1 — DONE
+- Routes, HTML shell, auto-launch spy tools, `/api/services`
 
-### Phase 2 (next)
-- `LCMStatsPublisher` in-process, native LCM Stats panel in Dev Tools
-- `AgentStreamMixin` in-process, native Agent Feed panel in Operations
-- Remove `lcmspy`/`agentspy` from textual-serve launch list
-- Keep `humancli` textual-serve for Dev Tools
+### Phase 2 — DONE
+- `LCMStatsPublisher` + `AgentStreamMixin` in-process via SocketIO
+- Native Agent Feed, LCM Stats, MCP Skills panels
+- Claude Chat panel with MCP tool-use
+- Removed `lcmspy`/`agentspy` from textual-serve (native streaming)
 
-### Phase 3
+### Phase 3 — TODO
 - Real-time skill invocation stream (`skill_invocation` SocketIO event from MCP server)
 - Skills feed panel with timestamp, name, args, result, duration
 
-### Phase 4
+### Phase 4 — TODO (core hackathon feature)
 - Person intelligence: YOLO + VLM activity classification per crop
 - Person cards panel: name, last seen, activity, timeline
-- Wire to temporal memory entity graph
+- Wire to temporal memory entity graph (EntityGraphDB)
 
-### Phase 5
+### Phase 5 — TODO
 - Query bar → temporal memory `query()` skill
+
+### Phase 6 — STRETCH
 - Room layout overlay on 2D map
 
 ---
