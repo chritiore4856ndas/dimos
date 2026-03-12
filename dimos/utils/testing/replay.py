@@ -14,7 +14,7 @@
 
 """Shim for TimedSensorReplay/TimedSensorStorage."""
 
-from dimos.memory_old.timeseries.legacy import LegacyPickleStore
+from dimos.memory.timeseries.legacy import LegacyPickleStore
 
 SensorReplay = LegacyPickleStore
 SensorStorage = LegacyPickleStore

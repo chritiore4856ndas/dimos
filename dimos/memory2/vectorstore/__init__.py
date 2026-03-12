@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Copyright 2026 Dimensional Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,3 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from dimos.memory2.vectorstore.memory import MemoryVectorStore
+from dimos.memory2.vectorstore.sqlite import SqliteVectorStore
+
+__all__ = ["MemoryVectorStore", "SqliteVectorStore"]

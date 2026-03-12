@@ -98,7 +98,6 @@ dimos = "dimos.robot.cli.dimos:main"
 rerun-bridge = "dimos.visualization.rerun.bridge:app"
 doclinks = "dimos.utils.docs.doclinks:main"
 dtop = "dimos.utils.cli.dtop:main"
-dps = "dimos.utils.cli.dps:main"
 
 [project.urls]
 Homepage = "https://dimensionalos.com"
