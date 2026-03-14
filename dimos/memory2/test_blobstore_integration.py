@@ -22,7 +22,7 @@ import numpy as np
 import pytest
 
 from dimos.memory2.blobstore.file import FileBlobStore
-from dimos.memory2.impl.memory import MemoryStore
+from dimos.memory2.store.memory import MemoryStore
 from dimos.memory2.type.observation import _UNLOADED
 from dimos.models.embedding.base import Embedding
 

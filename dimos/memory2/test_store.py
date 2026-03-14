@@ -28,7 +28,7 @@ from dimos.memory2.blobstore.base import BlobStore
 from dimos.memory2.vectorstore.base import VectorStore
 
 if TYPE_CHECKING:
-    from dimos.memory2.store import Store
+    from dimos.memory2.store.base import Store
 
 
 # ── Tests ─────────────────────────────────────────────────────────
@@ -261,7 +261,7 @@ class TestBlobLoading:
     def test_memory_lazy_with_blobstore(self, tmp_path) -> None:
         """MemoryStore with a BlobStore uses lazy loaders."""
         from dimos.memory2.blobstore.file import FileBlobStore
-        from dimos.memory2.impl.memory import MemoryStore
+        from dimos.memory2.store.memory import MemoryStore
         from dimos.memory2.type.observation import _Unloaded
 
         bs = FileBlobStore(root=tmp_path / "blobs")
@@ -344,7 +344,7 @@ class SpyVectorStore(VectorStore):
 
 @pytest.fixture
 def memory_spy_session():
-    from dimos.memory2.impl.memory import MemoryStore
+    from dimos.memory2.store.memory import MemoryStore
 
     blob_spy = SpyBlobStore()
     vec_spy = SpyVectorStore()
@@ -354,7 +354,7 @@ def memory_spy_session():
 
 @pytest.fixture
 def sqlite_spy_session(tmp_path):
-    from dimos.memory2.impl.sqlite import SqliteStore
+    from dimos.memory2.store.sqlite import SqliteStore
 
     blob_spy = SpyBlobStore()
     vec_spy = SpyVectorStore()

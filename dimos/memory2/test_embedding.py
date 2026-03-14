@@ -340,7 +340,7 @@ class TestPluggableVectorStore:
     """Verify that injecting a VectorStore via store config actually delegates search."""
 
     def test_append_stores_in_vector_store(self) -> None:
-        from dimos.memory2.impl.memory import MemoryStore
+        from dimos.memory2.store.memory import MemoryStore
         from dimos.memory2.vectorstore import MemoryVectorStore
 
         vs = MemoryVectorStore()
@@ -352,7 +352,7 @@ class TestPluggableVectorStore:
         assert len(vs._vectors["vecs"]) == 2
 
     def test_append_without_embedding_skips_vector_store(self) -> None:
-        from dimos.memory2.impl.memory import MemoryStore
+        from dimos.memory2.store.memory import MemoryStore
         from dimos.memory2.vectorstore import MemoryVectorStore
 
         vs = MemoryVectorStore()
@@ -363,7 +363,7 @@ class TestPluggableVectorStore:
         assert "plain" not in vs._vectors
 
     def test_search_uses_vector_store(self) -> None:
-        from dimos.memory2.impl.memory import MemoryStore
+        from dimos.memory2.store.memory import MemoryStore
         from dimos.memory2.vectorstore import MemoryVectorStore
 
         vs = MemoryVectorStore()
@@ -381,7 +381,7 @@ class TestPluggableVectorStore:
             assert results[0].similarity > 0.99
 
     def test_search_with_filters_via_vector_store(self) -> None:
-        from dimos.memory2.impl.memory import MemoryStore
+        from dimos.memory2.store.memory import MemoryStore
         from dimos.memory2.vectorstore import MemoryVectorStore
 
         vs = MemoryVectorStore()
@@ -396,7 +396,7 @@ class TestPluggableVectorStore:
             assert results[0].data == "late"
 
     def test_per_stream_vector_store_override(self) -> None:
-        from dimos.memory2.impl.memory import MemoryStore
+        from dimos.memory2.store.memory import MemoryStore
         from dimos.memory2.vectorstore import MemoryVectorStore
 
         vs_default = MemoryVectorStore()

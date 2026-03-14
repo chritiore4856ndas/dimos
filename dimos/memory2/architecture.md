@@ -38,7 +38,7 @@ Supporting Systems:
 | Package         | What                                                 | Docs                                             |
 |-----------------|------------------------------------------------------|--------------------------------------------------|
 | `type/`         | Observation, EmbeddedObservation, Filter/StreamQuery  | |
-| `impl/`         | ObservationStore implementations (ListObservationStore, SqliteObservationStore) and Stores (MemoryStore, SqliteStore) | [impl/README.md](impl/README.md)                 |
+| `store/`        | Store ABC + implementations (MemoryStore, SqliteStore) | [store/README.md](store/README.md)               |
 | `notifier/`     | Notifier ABC + SubjectNotifier                       |                                                  |
 | `blobstore/`    | BlobStore ABC + implementations (file, sqlite)       | [blobstore/blobstore.md](blobstore/blobstore.md) |
 | `codecs/`       | Encode/decode for storage (pickle, JPEG, LCM)        | [codecs/README.md](codecs/README.md)             |

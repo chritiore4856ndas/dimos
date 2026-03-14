@@ -1,4 +1,4 @@
-# impl — ObservationStore implementations
+# store — Store implementations
 
 Metadata index backends for memory. Each index implements the `ObservationStore` protocol to provide observation metadata storage with query support. The concrete `Backend` class handles orchestration (blob, vector, live) on top of any index.
 
@@ -60,7 +60,7 @@ class MyObservationStore(Generic[T]):
 ```python
 from dimos.memory2.backend import Backend
 from dimos.memory2.codecs.base import codec_for
-from dimos.memory2.store import Store
+from dimos.memory2.store.base import Store
 
 class MyStore(Store):
     def _create_backend(

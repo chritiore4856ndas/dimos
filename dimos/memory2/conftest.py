@@ -24,15 +24,15 @@ import pytest
 
 from dimos.memory2.blobstore.file import FileBlobStore
 from dimos.memory2.blobstore.sqlite import SqliteBlobStore
-from dimos.memory2.impl.memory import MemoryStore
-from dimos.memory2.impl.sqlite import SqliteStore
+from dimos.memory2.store.memory import MemoryStore
+from dimos.memory2.store.sqlite import SqliteStore
 
 if TYPE_CHECKING:
     from collections.abc import Generator
     from pathlib import Path
 
     from dimos.memory2.blobstore.base import BlobStore
-    from dimos.memory2.store import Store
+    from dimos.memory2.store.base import Store
 
 
 # ── Stores ────────────────────────────────────────────────────────

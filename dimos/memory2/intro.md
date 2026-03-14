@@ -3,7 +3,7 @@
 ## Quick start
 
 ```python session=memory ansi=false no-result
-from dimos.memory2.impl.sqlite import SqliteStore
+from dimos.memory2.store.sqlite import SqliteStore
 
 store = SqliteStore(path="/tmp/memory_readme.db")
 ```
