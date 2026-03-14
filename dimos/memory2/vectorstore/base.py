@@ -15,9 +15,10 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from dimos.core.resource import CompositeResource
+from dimos.memory2.registry import qual
 
 if TYPE_CHECKING:
     from dimos.models.embedding.base import Embedding
@@ -48,3 +49,6 @@ class VectorStore(CompositeResource):
     def delete(self, stream_name: str, key: int) -> None:
         """Remove a vector. Silent if missing."""
         ...
+
+    def serialize(self) -> dict[str, Any]:
+        return {"class": qual(type(self)), "config": self._config.model_dump()}

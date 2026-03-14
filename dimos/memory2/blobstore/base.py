@@ -15,8 +15,10 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from typing import Any
 
 from dimos.core.resource import CompositeResource
+from dimos.memory2.registry import qual
 
 
 class BlobStore(CompositeResource):
@@ -40,3 +42,6 @@ class BlobStore(CompositeResource):
     def delete(self, stream_name: str, key: int) -> None:
         """Delete a blob by stream name and observation id."""
         ...
+
+    def serialize(self) -> dict[str, Any]:
+        return {"class": qual(type(self)), "config": self._config.model_dump()}

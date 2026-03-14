@@ -15,10 +15,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from dimos.memory2.blobstore.base import BlobStore
-from dimos.memory2.registry import qual
 from dimos.memory2.utils import validate_identifier
 from dimos.protocol.service.spec import BaseConfig
 
@@ -72,12 +71,3 @@ class FileBlobStore(BlobStore):
     def delete(self, stream_name: str, key: int) -> None:
         p = self._path(stream_name, key)
         p.unlink(missing_ok=True)
-
-    # ── Serialization ─────────────────────────────────────────────
-
-    def serialize(self) -> dict[str, Any]:
-        return {"class": qual(type(self)), "config": self._config.model_dump()}
-
-    @classmethod
-    def deserialize(cls, data: dict[str, Any]) -> FileBlobStore:
-        return cls(root=data["root"])

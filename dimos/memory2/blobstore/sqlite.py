@@ -15,12 +15,10 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Any
 
 from reactivex.disposable import Disposable
 
 from dimos.memory2.blobstore.base import BlobStore
-from dimos.memory2.registry import qual
 from dimos.memory2.utils import open_sqlite_connection, validate_identifier
 from dimos.protocol.service.spec import BaseConfig
 
@@ -103,17 +101,3 @@ class SqliteBlobStore(BlobStore):
             self._conn.execute(f'DELETE FROM "{stream_name}_blob" WHERE id = ?', (key,))
         except Exception:
             pass
-
-    # ── Serialization ─────────────────────────────────────────────
-
-    def serialize(self) -> dict[str, Any]:
-        return {"class": qual(type(self)), "config": self._config.model_dump()}
-
-    @classmethod
-    def deserialize(cls, data: dict[str, Any]) -> SqliteBlobStore:
-        path = data.get("path")
-        if path is not None:
-            return cls(path=path)
-        raise ValueError(
-            "Cannot deserialize SqliteBlobStore without path (conn-shared mode is runtime-only)"
-        )

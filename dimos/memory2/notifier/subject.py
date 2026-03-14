@@ -17,12 +17,12 @@
 from __future__ import annotations
 
 import threading
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 from reactivex.disposable import Disposable
 
 from dimos.memory2.notifier.base import Notifier
-from dimos.memory2.registry import qual
+from dimos.protocol.service.spec import BaseConfig
 
 if TYPE_CHECKING:
     from reactivex.abc import DisposableBase
@@ -33,6 +33,10 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
+class SubjectNotifierConfig(BaseConfig):
+    pass
+
+
 class SubjectNotifier(Notifier[T], Generic[T]):
     """In-memory fan-out notifier for same-process live notification.
 
@@ -41,6 +45,7 @@ class SubjectNotifier(Notifier[T], Generic[T]):
     """
 
     def __init__(self) -> None:
+        self._config = SubjectNotifierConfig()
         self._subscribers: list[BackpressureBuffer[Observation[T]]] = []
         self._lock = threading.Lock()
 
@@ -62,12 +67,3 @@ class SubjectNotifier(Notifier[T], Generic[T]):
             subs = list(self._subscribers)
         for buf in subs:
             buf.put(obs)
-
-    # ── Serialization ─────────────────────────────────────────────
-
-    def serialize(self) -> dict[str, Any]:
-        return {"class": qual(type(self)), "config": {}}
-
-    @classmethod
-    def deserialize(cls, data: dict[str, Any]) -> SubjectNotifier[Any]:
-        return cls()

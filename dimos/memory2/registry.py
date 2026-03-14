@@ -32,7 +32,7 @@ def deserialize_component(data: dict[str, Any]) -> Any:
     module_path, _, cls_name = data["class"].rpartition(".")
     mod = importlib.import_module(module_path)
     cls = getattr(mod, cls_name)
-    return cls.deserialize(data["config"])
+    return cls(**data["config"])
 
 
 class RegistryStore:

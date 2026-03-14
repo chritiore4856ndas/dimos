@@ -456,12 +456,5 @@ class SqliteObservationStore(CompositeResource, Generic[T]):
             "config": self._config.model_dump(),
         }
 
-    @classmethod
-    def deserialize(cls, data: dict[str, Any]) -> SqliteObservationStore[Any]:
-        raise ValueError(
-            "SqliteObservationStore requires conn and name at runtime — "
-            "use _assemble_backend instead"
-        )
-
     def stop(self) -> None:
         super().stop()

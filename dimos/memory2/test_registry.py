@@ -143,14 +143,14 @@ class TestComponentSerialization:
         store = SqliteBlobStore(path=str(tmp_path / "blob.db"))
         data = store.serialize()
         assert data["class"] == qual(SqliteBlobStore)
-        restored = SqliteBlobStore.deserialize(data["config"])
+        restored = deserialize_component(data)
         assert isinstance(restored, SqliteBlobStore)
 
     def test_file_blob_store_roundtrip(self, tmp_path) -> None:
         store = FileBlobStore(root=str(tmp_path / "blobs"))
         data = store.serialize()
         assert data["class"] == qual(FileBlobStore)
-        restored = FileBlobStore.deserialize(data["config"])
+        restored = deserialize_component(data)
         assert isinstance(restored, FileBlobStore)
         assert str(restored._root) == str(tmp_path / "blobs")
 
@@ -164,14 +164,14 @@ class TestComponentSerialization:
         store = SqliteVectorStore(path=str(tmp_path / "vec.db"))
         data = store.serialize()
         assert data["class"] == qual(SqliteVectorStore)
-        restored = SqliteVectorStore.deserialize(data["config"])
+        restored = deserialize_component(data)
         assert isinstance(restored, SqliteVectorStore)
 
     def test_subject_notifier_roundtrip(self) -> None:
         notifier = SubjectNotifier()
         data = notifier.serialize()
         assert data["class"] == qual(SubjectNotifier)
-        restored = SubjectNotifier.deserialize(data["config"])
+        restored = deserialize_component(data)
         assert isinstance(restored, SubjectNotifier)
 
     def test_deserialize_component(self, tmp_path) -> None:

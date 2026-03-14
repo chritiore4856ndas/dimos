@@ -183,11 +183,11 @@ class SqliteStore(Store):
             "eager_blobs": backend.eager_blobs,
             "page_size": page_size,
         }
-        if hasattr(backend.blob_store, "serialize"):
+        if backend.blob_store is not None and hasattr(backend.blob_store, "_config"):
             cfg["blob_store"] = backend.blob_store.serialize()
-        if hasattr(backend.vector_store, "serialize"):
+        if backend.vector_store is not None and hasattr(backend.vector_store, "_config"):
             cfg["vector_store"] = backend.vector_store.serialize()
-        if hasattr(backend.notifier, "serialize"):
+        if hasattr(backend.notifier, "_config"):
             cfg["notifier"] = backend.notifier.serialize()
         return cfg
 

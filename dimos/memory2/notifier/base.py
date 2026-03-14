@@ -15,7 +15,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
+
+from dimos.memory2.registry import qual
 
 if TYPE_CHECKING:
     from reactivex.abc import DisposableBase
@@ -45,3 +47,6 @@ class Notifier(ABC, Generic[T]):
     def notify(self, obs: Observation[T]) -> None:
         """Fan out *obs* to all current subscribers."""
         ...
+
+    def serialize(self) -> dict[str, Any]:
+        return {"class": qual(type(self)), "config": self._config.model_dump()}
