@@ -43,6 +43,11 @@ class LocalPlannerConfig(NativeModuleConfig):
     cwd: str | None = "../.."
     executable: str = "results/local-planner/bin/local_planner"
     build_command: str | None = "nix build .#local_planner -o results/local-planner"
+    rebuild_on_change: list[str] | None = [
+        "modules/local_planner/main.cpp",
+        "common/*.hpp",
+        "CMakeLists.txt",
+    ]
 
     # Path data directory (auto-resolved from LFS)
     paths_dir: str = ""

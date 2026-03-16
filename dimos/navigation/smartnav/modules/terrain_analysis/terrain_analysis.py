@@ -32,6 +32,11 @@ class TerrainAnalysisConfig(NativeModuleConfig):
     cwd: str | None = "../.."
     executable: str = "results/terrain-analysis/bin/terrain_analysis"
     build_command: str | None = "nix build .#terrain_analysis -o results/terrain-analysis"
+    rebuild_on_change: list[str] | None = [
+        "modules/terrain_analysis/main.cpp",
+        "common/*.hpp",
+        "CMakeLists.txt",
+    ]
 
     # Terrain analysis parameters
     sensor_range: float = 20.0

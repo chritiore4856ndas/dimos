@@ -34,6 +34,11 @@ class FarPlannerConfig(NativeModuleConfig):
     cwd: str | None = "../.."
     executable: str = "results/far-planner/bin/far_planner"
     build_command: str | None = "nix build .#far_planner -o results/far-planner"
+    rebuild_on_change: list[str] | None = [
+        "modules/far_planner/main.cpp",
+        "common/*.hpp",
+        "CMakeLists.txt",
+    ]
 
     # Planner parameters
     visibility_range: float = 15.0

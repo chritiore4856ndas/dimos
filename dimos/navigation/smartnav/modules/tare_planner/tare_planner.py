@@ -33,6 +33,11 @@ class TarePlannerConfig(NativeModuleConfig):
     cwd: str | None = "../.."
     executable: str = "results/tare-planner/bin/tare_planner"
     build_command: str | None = "nix build .#tare_planner -o results/tare-planner"
+    rebuild_on_change: list[str] | None = [
+        "modules/tare_planner/main.cpp",
+        "common/*.hpp",
+        "CMakeLists.txt",
+    ]
 
     # Exploration parameters
     exploration_range: float = 20.0

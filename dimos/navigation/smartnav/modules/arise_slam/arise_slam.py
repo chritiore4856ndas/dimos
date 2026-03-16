@@ -35,6 +35,11 @@ class AriseSLAMConfig(NativeModuleConfig):
     cwd: str | None = "../.."
     executable: str = "results/arise-slam/bin/arise_slam"
     build_command: str | None = "nix build .#arise_slam -o results/arise-slam"
+    rebuild_on_change: list[str] | None = [
+        "modules/arise_slam/main.cpp",
+        "common/*.hpp",
+        "CMakeLists.txt",
+    ]
 
     # Feature extraction
     edge_threshold: float = 1.0

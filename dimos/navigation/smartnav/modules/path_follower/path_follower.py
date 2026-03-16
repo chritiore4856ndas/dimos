@@ -33,6 +33,11 @@ class PathFollowerConfig(NativeModuleConfig):
     cwd: str | None = "../.."
     executable: str = "results/path-follower/bin/path_follower"
     build_command: str | None = "nix build .#path_follower -o results/path-follower"
+    rebuild_on_change: list[str] | None = [
+        "modules/path_follower/main.cpp",
+        "common/*.hpp",
+        "CMakeLists.txt",
+    ]
 
     # Pure pursuit parameters
     look_ahead_distance: float = 0.5
