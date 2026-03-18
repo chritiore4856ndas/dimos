@@ -55,32 +55,28 @@ def mock_arm(hw_id: str = "arm", n_joints: int = 7) -> HardwareComponent:
 
 def xarm7(hw_id: str = "arm", *, gripper: bool = False) -> HardwareComponent:
     """XArm7 real hardware (7-DOF)."""
-    kwargs: dict = dict(
+    return HardwareComponent(
         hardware_id=hw_id,
         hardware_type=HardwareType.MANIPULATOR,
         joints=make_joints(hw_id, 7),
         adapter_type="xarm",
         address=XARM7_IP,
         auto_enable=True,
+        gripper_joints=make_gripper_joints(hw_id) if gripper else [],
     )
-    if gripper:
-        kwargs["gripper_joints"] = make_gripper_joints(hw_id)
-    return HardwareComponent(**kwargs)
 
 
 def xarm6(hw_id: str = "arm", *, gripper: bool = False) -> HardwareComponent:
     """XArm6 real hardware (6-DOF)."""
-    kwargs: dict = dict(
+    return HardwareComponent(
         hardware_id=hw_id,
         hardware_type=HardwareType.MANIPULATOR,
         joints=make_joints(hw_id, 6),
         adapter_type="xarm",
         address=XARM6_IP,
         auto_enable=True,
+        gripper_joints=make_gripper_joints(hw_id) if gripper else [],
     )
-    if gripper:
-        kwargs["gripper_joints"] = make_gripper_joints(hw_id)
-    return HardwareComponent(**kwargs)
 
 
 def piper(hw_id: str = "arm") -> HardwareComponent:
