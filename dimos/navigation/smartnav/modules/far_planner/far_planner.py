@@ -31,13 +31,14 @@ from dimos.msgs.sensor_msgs.PointCloud2 import PointCloud2
 class FarPlannerConfig(NativeModuleConfig):
     """Config for the FAR planner native module."""
 
-    cwd: str | None = "../.."
-    executable: str = "results/far-planner/bin/far_planner"
-    build_command: str | None = "nix build .#far_planner -o results/far-planner"
+    cwd: str | None = "."
+    executable: str = "result/bin/far_planner"
+    build_command: str | None = "nix build . -o result"
     rebuild_on_change: list[str] | None = [
-        "modules/far_planner/main.cpp",
-        "common/*.hpp",
+        "main.cpp",
+        "../../common/*.hpp",
         "CMakeLists.txt",
+        "flake.nix",
     ]
 
     # Planner parameters

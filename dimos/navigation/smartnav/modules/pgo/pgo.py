@@ -53,6 +53,9 @@ class PGOConfig(ModuleConfig):
     submap_resolution: float = 0.1
     min_loop_detect_duration: float = 5.0
 
+    # Input mode
+    unregister_input: bool = True  # Transform world-frame scans to body-frame using odom
+
     # Global map
     global_map_publish_rate: float = 0.5
     global_map_voxel_size: float = 0.15
@@ -443,8 +446,12 @@ class PGO(Module[PGOConfig]):
         pgo = self._pgo
         assert pgo is not None
 
-        # Body-frame points (registered_scan is world-frame, transform back)
-        body_pts = (r_local.T @ (points[:, :3].T - t_local[:, None])).T
+        # Body-frame points
+        if self.config.unregister_input:
+            # registered_scan is world-frame, transform back to body-frame
+            body_pts = (r_local.T @ (points[:, :3].T - t_local[:, None])).T
+        else:
+            body_pts = points[:, :3]
 
         added = pgo.add_key_pose(r_local, t_local, ts, body_pts)
         if added:

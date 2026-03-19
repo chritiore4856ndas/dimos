@@ -30,13 +30,14 @@ from dimos.msgs.nav_msgs.Path import Path
 class PathFollowerConfig(NativeModuleConfig):
     """Config for the path follower native module."""
 
-    cwd: str | None = "../.."
-    executable: str = "results/path-follower/bin/path_follower"
-    build_command: str | None = "nix build .#path_follower -o results/path-follower"
+    cwd: str | None = "."
+    executable: str = "result/bin/path_follower"
+    build_command: str | None = "nix build . -o result"
     rebuild_on_change: list[str] | None = [
-        "modules/path_follower/main.cpp",
-        "common/*.hpp",
+        "main.cpp",
+        "../../common/*.hpp",
         "CMakeLists.txt",
+        "flake.nix",
     ]
 
     # Pure pursuit parameters

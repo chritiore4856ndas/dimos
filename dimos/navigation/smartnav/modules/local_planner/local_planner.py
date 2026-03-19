@@ -40,13 +40,14 @@ def _default_paths_dir() -> str:
 class LocalPlannerConfig(NativeModuleConfig):
     """Config for the local planner native module."""
 
-    cwd: str | None = "../.."
-    executable: str = "results/local-planner/bin/local_planner"
-    build_command: str | None = "nix build .#local_planner -o results/local-planner"
+    cwd: str | None = "."
+    executable: str = "result/bin/local_planner"
+    build_command: str | None = "nix build . -o result"
     rebuild_on_change: list[str] | None = [
-        "modules/local_planner/main.cpp",
-        "common/*.hpp",
+        "main.cpp",
+        "../../common/*.hpp",
         "CMakeLists.txt",
+        "flake.nix",
     ]
 
     # Path data directory (auto-resolved from LFS)

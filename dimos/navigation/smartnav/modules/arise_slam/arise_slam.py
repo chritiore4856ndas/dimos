@@ -32,12 +32,13 @@ from dimos.msgs.sensor_msgs.PointCloud2 import PointCloud2
 class AriseSLAMConfig(NativeModuleConfig):
     """Config for the AriseSLAM native module."""
 
-    cwd: str | None = "../.."
-    executable: str = "results/arise-slam/bin/arise_slam"
-    build_command: str | None = "nix build .#arise_slam -o results/arise-slam"
+    cwd: str | None = "."
+    executable: str = "result/bin/arise_slam"
+    build_command: str | None = "nix build . -o result"
     rebuild_on_change: list[str] | None = [
-        "modules/arise_slam/main.cpp",
-        "common/*.hpp",
+        "main.cpp",
+        "../../common/*.hpp",
+        "flake.nix",
         "CMakeLists.txt",
     ]
 

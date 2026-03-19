@@ -30,13 +30,14 @@ from dimos.msgs.sensor_msgs.PointCloud2 import PointCloud2
 class TarePlannerConfig(NativeModuleConfig):
     """Config for the TARE planner native module."""
 
-    cwd: str | None = "../.."
-    executable: str = "results/tare-planner/bin/tare_planner"
-    build_command: str | None = "nix build .#tare_planner -o results/tare-planner"
+    cwd: str | None = "."
+    executable: str = "result/bin/tare_planner"
+    build_command: str | None = "nix build . -o result"
     rebuild_on_change: list[str] | None = [
-        "modules/tare_planner/main.cpp",
-        "common/*.hpp",
+        "main.cpp",
+        "../../common/*.hpp",
         "CMakeLists.txt",
+        "flake.nix",
     ]
 
     # Exploration parameters
