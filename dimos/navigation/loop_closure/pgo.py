@@ -34,6 +34,7 @@ from scipy.spatial import KDTree
 
 from dimos.core.module import Module, ModuleConfig
 from dimos.core.stream import In, Out
+from dimos.msgs.geometry_msgs.PoseStamped import PoseStamped
 from dimos.msgs.nav_msgs.Odometry import Odometry
 from dimos.msgs.sensor_msgs.PointCloud2 import PointCloud2
 
@@ -362,16 +363,18 @@ class PGO(Module[PGOConfig]):
 
     Ports:
         registered_scan (In[PointCloud2]): World-frame registered point cloud.
-        odometry (In[Odometry]): Current pose estimate from SLAM.
-        corrected_odometry (Out[Odometry]): Loop-closure-corrected pose.
+        raw_odom (In[PoseStamped]): Raw pose from robot (PoseStamped).
+        corrected_odometry (Out[Odometry]): Loop-closure-corrected pose (Odometry).
+        odom (Out[PoseStamped]): Loop-closure-corrected pose (PoseStamped, for downstream).
         global_static_map (Out[PointCloud2]): Accumulated keyframe map.
     """
 
     default_config = PGOConfig
 
     registered_scan: In[PointCloud2]
-    odometry: In[Odometry]
+    raw_odom: In[PoseStamped]
     corrected_odometry: Out[Odometry]
+    odom: Out[PoseStamped]
     global_static_map: Out[PointCloud2]
 
     def __init__(self, **kwargs) -> None:  # type: ignore[no-untyped-def]
@@ -401,7 +404,7 @@ class PGO(Module[PGOConfig]):
 
     def start(self) -> None:
         self._pgo = _SimplePGO(self.config)
-        self.odometry._transport.subscribe(self._on_odom)
+        self.raw_odom._transport.subscribe(self._on_raw_odom)
         self.registered_scan._transport.subscribe(self._on_scan)
         self._running = True
         self._thread = threading.Thread(target=self._publish_loop, daemon=True)
@@ -414,17 +417,17 @@ class PGO(Module[PGOConfig]):
             self._thread.join(timeout=3.0)
         super().stop()
 
-    def _on_odom(self, msg: Odometry) -> None:
+    def _on_raw_odom(self, msg: PoseStamped) -> None:
         from scipy.spatial.transform import Rotation
 
         q = [
-            msg.pose.orientation.x,
-            msg.pose.orientation.y,
-            msg.pose.orientation.z,
-            msg.pose.orientation.w,
+            msg.orientation.x,
+            msg.orientation.y,
+            msg.orientation.z,
+            msg.orientation.w,
         ]
         r = Rotation.from_quat(q).as_matrix()
-        t = np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z])
+        t = np.array([msg.x, msg.y, msg.z])
         with self._lock:
             self._latest_r = r
             self._latest_t = t
@@ -483,6 +486,14 @@ class PGO(Module[PGOConfig]):
             ),
         )
         self.corrected_odometry._transport.publish(odom)
+
+        ps = PoseStamped(
+            ts=ts,
+            frame_id="map",
+            position=[float(t[0]), float(t[1]), float(t[2])],
+            orientation=[float(q[0]), float(q[1]), float(q[2]), float(q[3])],
+        )
+        self.odom._transport.publish(ps)
 
     def _publish_loop(self) -> None:
         """Periodically publish global map."""

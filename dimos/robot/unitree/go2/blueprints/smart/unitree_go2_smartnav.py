@@ -16,13 +16,14 @@
 """Go2 SmartNav blueprint: PGO + CostMapper + ReplanningAStarPlanner.
 
 Uses PGO for loop-closure-corrected odometry and global map from the Go2's
-world-frame lidar + drifted odom. OdomAdapter bridges PoseStamped <-> Odometry
-between GO2Connection and PGO.
+world-frame lidar + drifted odom. PGO accepts PoseStamped input directly and
+outputs both corrected Odometry and PoseStamped.
 
 Data flow:
     GO2Connection.lidar (remapped → registered_scan) → PGO
-    GO2Connection.odom (remapped → raw_odom) → OdomAdapter → PGO.odometry
-    PGO.corrected_odometry → OdomAdapter → odom → ReplanningAStarPlanner
+    GO2Connection.odom (remapped → raw_odom) → PGO
+    PGO.corrected_odometry (Odometry)
+    PGO.odom (PoseStamped) → ReplanningAStarPlanner
     PGO.global_map → CostMapper → ReplanningAStarPlanner
     ReplanningAStarPlanner.cmd_vel → GO2Connection
 """
@@ -33,15 +34,13 @@ from dimos.navigation.frontier_exploration.wavefront_frontier_goal_selector impo
     wavefront_frontier_explorer,
 )
 from dimos.navigation.replanning_a_star.module import replanning_a_star_planner
-from dimos.navigation.smartnav.modules.odom_adapter.odom_adapter import odom_adapter
-from dimos.navigation.smartnav.modules.pgo.pgo import PGO
+from dimos.navigation.loop_closure.pgo import PGO
 from dimos.robot.unitree.go2.blueprints.basic.unitree_go2_basic import unitree_go2_basic
 from dimos.robot.unitree.go2.connection import GO2Connection
 
 unitree_go2_smartnav = autoconnect(
     unitree_go2_basic,
     PGO.blueprint(),
-    odom_adapter(),
     cost_mapper(),
     replanning_a_star_planner(),
     wavefront_frontier_explorer(),

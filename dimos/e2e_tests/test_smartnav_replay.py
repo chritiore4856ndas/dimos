@@ -14,9 +14,9 @@
 
 """Integration test for the unitree_go2_smartnav blueprint using replay data.
 
-Builds the smartnav pipeline (GO2Connection → OdomAdapter → PGO → CostMapper →
+Builds the smartnav pipeline (GO2Connection → PGO → CostMapper →
 ReplanningAStarPlanner) in replay mode and verifies that data flows end-to-end:
-  - PGO receives scans and odom, publishes corrected_odometry + global_map
+  - PGO receives scans and raw odom (PoseStamped), publishes corrected_odometry + global_map
   - CostMapper receives global_map, publishes global_costmap
 """
 
@@ -34,8 +34,7 @@ from dimos.msgs.geometry_msgs.PoseStamped import PoseStamped
 from dimos.msgs.nav_msgs.Odometry import Odometry
 from dimos.msgs.nav_msgs.OccupancyGrid import OccupancyGrid
 from dimos.msgs.sensor_msgs.PointCloud2 import PointCloud2
-from dimos.navigation.smartnav.modules.odom_adapter.odom_adapter import odom_adapter
-from dimos.navigation.smartnav.modules.pgo.pgo import PGO
+from dimos.navigation.loop_closure.pgo import PGO
 from dimos.robot.unitree.go2.blueprints.basic.unitree_go2_basic import unitree_go2_basic
 from dimos.robot.unitree.go2.connection import GO2Connection
 
@@ -55,13 +54,12 @@ def smartnav_coordinator():
         n_workers=1,
     )
 
-    # Minimal pipeline: GO2Connection → OdomAdapter → PGO → CostMapper
+    # Minimal pipeline: GO2Connection → PGO → CostMapper
     # Skip ReplanningAStarPlanner and WavefrontFrontierExplorer to avoid
     # needing a goal and cmd_vel sink.
     bp = autoconnect(
         unitree_go2_basic,
         PGO.blueprint(),
-        odom_adapter(),
         cost_mapper(),
     ).global_config(
         n_workers=1,
@@ -187,35 +185,25 @@ class TestSmartNavReplay:
         msg = collector.messages[0]
         assert isinstance(msg, OccupancyGrid), f"Expected OccupancyGrid, got {type(msg)}"
 
-    def test_odom_adapter_converts_bidirectionally(self, smartnav_coordinator):
-        """OdomAdapter should convert PoseStamped→Odometry and Odometry→PoseStamped."""
+    def test_pgo_produces_corrected_pose_stamped(self, smartnav_coordinator):
+        """PGO should publish corrected pose as PoseStamped on the odom output."""
         coord = smartnav_coordinator
 
-        from dimos.navigation.smartnav.modules.odom_adapter.odom_adapter import OdomAdapter
-
-        adapter = None
+        pgo_mod = None
         for mod in coord.all_modules:
-            if isinstance(mod, OdomAdapter):
-                adapter = mod
+            if isinstance(mod, PGO):
+                pgo_mod = mod
                 break
-        assert adapter is not None, "OdomAdapter not found in coordinator"
+        assert pgo_mod is not None, "PGO module not found in coordinator"
 
-        # Collect outputs from both directions
-        odom_out = _StreamCollector()
-        ps_out = _StreamCollector()
-        adapter.odometry._transport.subscribe(odom_out.callback)
-        adapter.odom._transport.subscribe(ps_out.callback)
+        collector = _StreamCollector()
+        pgo_mod.odom._transport.subscribe(collector.callback)
 
         coord.start()
 
-        # OdomAdapter.odometry (PoseStamped→Odometry) should fire from replay odom
-        assert odom_out.wait(count=3, timeout=30), (
-            f"OdomAdapter did not produce Odometry output (got {len(odom_out.messages)})"
+        assert collector.wait(count=3, timeout=30), (
+            f"PGO did not produce PoseStamped odom output (got {len(collector.messages)})"
         )
-        assert isinstance(odom_out.messages[0], Odometry)
-
-        # OdomAdapter.odom (Odometry→PoseStamped) fires when PGO publishes corrected_odometry
-        assert ps_out.wait(count=1, timeout=30), (
-            f"OdomAdapter did not produce PoseStamped output (got {len(ps_out.messages)})"
-        )
-        assert isinstance(ps_out.messages[0], PoseStamped)
+        msg = collector.messages[0]
+        assert isinstance(msg, PoseStamped), f"Expected PoseStamped, got {type(msg)}"
+        assert msg.frame_id == "map"
