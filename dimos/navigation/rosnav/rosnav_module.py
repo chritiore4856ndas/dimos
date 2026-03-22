@@ -79,6 +79,7 @@ from dimos.msgs.geometry_msgs.Quaternion import Quaternion
 from dimos.msgs.geometry_msgs.Transform import Transform
 from dimos.msgs.geometry_msgs.Twist import Twist
 from dimos.msgs.geometry_msgs.Vector3 import Vector3
+from dimos.msgs.nav_msgs.Odometry import Odometry
 from dimos.msgs.nav_msgs.Path import Path as NavPath
 from dimos.msgs.sensor_msgs.Image import Image, ImageFormat
 from dimos.msgs.sensor_msgs.PointCloud2 import PointCloud2
@@ -158,10 +159,11 @@ class ROSNavConfig(DockerModuleConfig):
 
     # Runtime mode settings
     # mode controls which ROS launch file the entrypoint selects:
-    #   "simulation"  — system_simulation[_with_route_planner].launch.py + Unity if present
-    #   "unity_sim"   — same as simulation but hard-exits if Unity binary is missing
-    #   "hardware"    — system_real_robot[_with_route_planner].launch.py
-    #   "bagfile"     — system_bagfile[_with_route_planner].launch.py + use_sim_time
+    #   "simulation"    — system_simulation[_with_route_planner].launch.py + Unity if present
+    #   "unity_sim"     — same as simulation but hard-exits if Unity binary is missing
+    #   "external_sim"  — same launch as simulation, but no internal Unity (sensor data from LCM)
+    #   "hardware"      — system_real_robot[_with_route_planner].launch.py
+    #   "bagfile"       — system_bagfile[_with_route_planner].launch.py + use_sim_time
     # Setting bagfile_path automatically forces mode to "bagfile".
     mode: str = "hardware"
     use_route_planner: bool = False
@@ -189,6 +191,12 @@ class ROSNavConfig(DockerModuleConfig):
     lidar_ip: str = ""
     unitree_ip: str = "192.168.12.1"
     unitree_conn: str = "LocalAP"
+
+    # When True, download and mount sim assets (map.ply, traversable_area.ply) even
+    # in hardware mode.  Used when running hardware-mode nav stack with an external
+    # simulator that still needs the pre-built map data.
+    # TODO: remove once the nav stack can build maps purely from incoming lidar.
+    mount_sim_assets: bool = False
 
     def model_post_init(self, __context: object) -> None:
         import os
@@ -253,8 +261,10 @@ class ROSNavConfig(DockerModuleConfig):
             ),
         ]
 
-        # Only download and mount sim assets for simulation modes (avoids slow LFS pull in hardware mode)
-        if effective_mode in ("simulation", "unity_sim"):
+        # Only download and mount sim assets for simulation modes (avoids slow LFS pull in hardware mode).
+        # mount_sim_assets overrides this for hardware mode with external sim.
+        # TODO: remove mount_sim_assets once nav stack can build maps from lidar alone.
+        if effective_mode in ("simulation", "unity_sim", "external_sim") or self.mount_sim_assets:
             sim_data_dir = str(get_data("office_building_1"))
             self.docker_volumes += [
                 # Mount Unity sim (office_building_1) — downloaded via get_data / LFS
@@ -304,7 +314,12 @@ class ROSNav(Module, NavigationInterface):
     stop_explore_cmd: In[Bool]
     tele_cmd_vel: In[Twist]
 
-    color_image: Out[Image]
+    # External sensor inputs — when connected, data is republished to ROS2
+    # topics inside the Docker container so the nav stack can consume them
+    # (e.g. from an external simulator).
+    ext_registered_scan: In[PointCloud2]
+    ext_odometry: In[Odometry]
+
     lidar: Out[PointCloud2]
     global_pointcloud: Out[PointCloud2]
     overall_map: Out[PointCloud2]
@@ -332,13 +347,7 @@ class ROSNav(Module, NavigationInterface):
     _last_odom: PoseStamped | None = None
 
     def __init__(self, *args, **kwargs) -> None:  # type: ignore[no-untyped-def]
-        logger.info("[ROSNav] __init__ starting")
-        try:
-            super().__init__(*args, **kwargs)
-        except Exception as e:
-            logger.error(f"[ROSNav] super().__init__ failed: {e}", exc_info=True)
-            raise
-        logger.info("[ROSNav] super().__init__ done")
+        super().__init__(*args, **kwargs)
         import rclpy
         from rclpy.node import Node
 
@@ -348,10 +357,8 @@ class ROSNav(Module, NavigationInterface):
         self._navigation_state = NavigationState.IDLE
         self._goal_reached = False
 
-        logger.info("[ROSNav] initializing rclpy")
         if not rclpy.ok():  # type: ignore[attr-defined]
             rclpy.init()
-        logger.info("[ROSNav] rclpy initialized, creating node")
 
         self._node = Node("navigation_module")
 
@@ -388,21 +395,23 @@ class ROSNav(Module, NavigationInterface):
             ROSPointCloud2, "/overall_map", self._on_ros_overall_map, 10
         )
 
-        self.image_sub = self._node.create_subscription(
-            ROSCompressedImage, "/camera/image/compressed", self._on_ros_image, 10
-        )
-
         self.path_sub = self._node.create_subscription(ROSPath, "/path", self._on_ros_path, 10)
         self.tf_sub = self._node.create_subscription(ROSTFMessage, "/tf", self._on_ros_tf, 10)
         self.odom_sub = self._node.create_subscription(
             ROSOdometry, "/state_estimation", self._on_ros_odom, 10
         )
 
+        # ROS2 publisher for external sensor data.
+        # When ext_registered_scan input is connected, incoming DimOS PointCloud2
+        # messages are converted and republished on this ROS2 topic so the nav
+        # stack inside the container can consume them.
+        self._ext_scan_pub = self._node.create_publisher(ROSPointCloud2, "/registered_scan", 10)
+        self._ext_odom_pub = self._node.create_publisher(ROSOdometry, "/state_estimation", 10)
+
         logger.info("NavigationModule initialized with ROS2 node")
 
     @rpc
     def start(self) -> None:
-        logger.info("[ROSNav] start() called")
         try:
             self._running = True
 
@@ -411,19 +420,19 @@ class ROSNav(Module, NavigationInterface):
                 target=self._spin_node, daemon=True, name="ROS2SpinThread"
             )
             self._spin_thread.start()
-            logger.info("[ROSNav] ROS2 spin thread started")
 
-            logger.info("[ROSNav] subscribing to goal_request")
             self.goal_request.subscribe(self._on_goal_pose)
-            logger.info("[ROSNav] subscribing to clicked_point")
             self.clicked_point.subscribe(lambda pt: self._on_goal_pose(pt.to_pose_stamped()))
-            logger.info("[ROSNav] subscribing to stop_explore_cmd")
             self.stop_explore_cmd.subscribe(self._on_stop_cmd)
-            logger.info("[ROSNav] subscribing to tele_cmd_vel")
             self.tele_cmd_vel.subscribe(self._on_tele_cmd_vel)
-            logger.info("[ROSNav] start() complete — all subscriptions active")
+
+            # External sensor inputs — republish to ROS2 topics for the nav stack
+            self.ext_registered_scan.subscribe(self._on_ext_scan)
+            self.ext_odometry.subscribe(self._on_ext_odom)
+
+            logger.info("NavigationModule started with ROS2 spinning")
         except Exception as e:
-            logger.error(f"[ROSNav] start() failed: {e}", exc_info=True)
+            logger.error(f"ROSNav start() failed: {e}", exc_info=True)
 
     def _spin_node(self) -> None:
         import rclpy
@@ -468,8 +477,6 @@ class ROSNav(Module, NavigationInterface):
         # self.overall_map.publish(_pc2_from_ros(msg))
         pass
 
-    def _on_ros_image(self, msg: "ROSCompressedImage") -> None:
-        self.color_image.publish(_image_from_ros_compressed(msg))
 
     def _on_ros_path(self, msg: ROSPath) -> None:
         dimos_path = _path_from_ros(msg)
@@ -492,6 +499,12 @@ class ROSNav(Module, NavigationInterface):
         self.odom.publish(pose)
 
     def _on_ros_tf(self, msg: ROSTFMessage) -> None:
+        # In external_sim mode, the UnityBridgeModule owns the ground-truth
+        # transforms (map→sensor, map→world).  Don't republish SLAM TF here
+        # or the two sources will fight and cause jitter.
+        if self.config.mode == "external_sim":
+            return
+
         ros_tf = _tfmessage_from_ros(msg)
 
         # In hardware/bagfile mode the SLAM initialises the sensor at the
@@ -534,7 +547,6 @@ class ROSNav(Module, NavigationInterface):
             self.goal_pose_pub.publish(ros_pose)
 
     def _on_tele_cmd_vel(self, msg: Twist) -> None:
-        print(f'''msg = {msg}''')
         with self._teleop_lock:
             if not self._teleop_active:
                 self._teleop_active = True
@@ -552,7 +564,6 @@ class ROSNav(Module, NavigationInterface):
             self._teleop_timer.start()
 
         # Forward teleop command to output
-        logger.info("tele_cmd_vel received", linear_x=msg.linear.x, linear_y=msg.linear.y, angular_z=msg.angular.z)
         self.cmd_vel.publish(msg)
 
     def _end_teleop_override(self) -> None:
@@ -568,6 +579,15 @@ class ROSNav(Module, NavigationInterface):
             self.goal_pose_pub.publish(ros_pose)
         else:
             logger.warning("Teleop cooldown expired but no odom available")
+
+    # -- External sensor input callbacks --
+    # Convert DimOS messages to ROS2 and republish on ROS2 topics.
+
+    def _on_ext_scan(self, pc2: PointCloud2) -> None:
+        self._ext_scan_pub.publish(_pc2_to_ros(pc2))
+
+    def _on_ext_odom(self, odom: Odometry) -> None:
+        self._ext_odom_pub.publish(_odometry_to_ros(odom))
 
     def _set_autonomy_mode(self) -> None:
         joy_msg = ROSJoy()  # type: ignore[no-untyped-call]
@@ -953,6 +973,78 @@ def _tfmessage_from_ros(msg: "ROSTFMessage") -> TFMessage:
             )
         )
     return TFMessage(*transforms)
+
+
+# -- DimOS → ROS2 conversion helpers (inverse of the from_ros functions above) --
+
+
+def _pc2_to_ros(pc2: PointCloud2) -> "ROSPointCloud2":
+    """Convert a DimOS PointCloud2 to a ROS2 sensor_msgs/PointCloud2.
+
+    Includes a zero-filled ``intensity`` field because the CMU nav stack's
+    terrain analysis nodes require it (they filter on ``intensity``).
+    """
+    from builtin_interfaces.msg import Time as ROSTime  # type: ignore[attr-defined]
+    from sensor_msgs.msg import PointField  # type: ignore[attr-defined]
+
+    points, _ = pc2.as_numpy()  # (N, 3) float32
+    n = points.shape[0]
+    # XYZI layout: 4 floats per point (intensity = 0)
+    xyzi = np.zeros((n, 4), dtype=np.float32)
+    xyzi[:, :3] = points.astype(np.float32)
+
+    ros_msg = ROSPointCloud2()  # type: ignore[no-untyped-call]
+    ros_msg.header.stamp = ROSTime(sec=int(pc2.ts), nanosec=int((pc2.ts % 1) * 1e9))  # type: ignore[no-untyped-call]
+    ros_msg.header.frame_id = pc2.frame_id or "sensor"
+    ros_msg.height = 1
+    ros_msg.width = n
+    ros_msg.fields = [
+        PointField(name="x", offset=0, datatype=7, count=1),  # type: ignore[no-untyped-call]
+        PointField(name="y", offset=4, datatype=7, count=1),  # type: ignore[no-untyped-call]
+        PointField(name="z", offset=8, datatype=7, count=1),  # type: ignore[no-untyped-call]
+        PointField(name="intensity", offset=12, datatype=7, count=1),  # type: ignore[no-untyped-call]
+    ]
+    ros_msg.is_bigendian = False
+    ros_msg.point_step = 16
+    ros_msg.row_step = 16 * n
+    ros_msg.data = xyzi.tobytes()
+    ros_msg.is_dense = True
+    return ros_msg
+
+
+def _odometry_to_ros(odom: Odometry) -> "ROSOdometry":
+    """Convert a DimOS Odometry to a ROS2 nav_msgs/Odometry."""
+    from builtin_interfaces.msg import Time as ROSTime  # type: ignore[attr-defined]
+    from geometry_msgs.msg import (  # type: ignore[attr-defined]
+        Point as ROSPoint,
+        Pose as ROSPose,
+        Quaternion as ROSQuat,
+        Twist as ROSTwist,
+        Vector3 as ROSVector3,
+    )
+
+    ros_msg = ROSOdometry()  # type: ignore[no-untyped-call]
+    ros_msg.header.stamp = ROSTime(sec=int(odom.ts), nanosec=int((odom.ts % 1) * 1e9))  # type: ignore[no-untyped-call]
+    ros_msg.header.frame_id = odom.frame_id or "map"
+    ros_msg.child_frame_id = odom.child_frame_id or "sensor"
+    ros_msg.pose.pose = ROSPose(  # type: ignore[no-untyped-call]
+        position=ROSPoint(  # type: ignore[no-untyped-call]
+            x=odom.pose.position.x, y=odom.pose.position.y, z=odom.pose.position.z
+        ),
+        orientation=ROSQuat(  # type: ignore[no-untyped-call]
+            x=odom.pose.orientation.x, y=odom.pose.orientation.y,
+            z=odom.pose.orientation.z, w=odom.pose.orientation.w,
+        ),
+    )
+    ros_msg.twist.twist = ROSTwist(  # type: ignore[no-untyped-call]
+        linear=ROSVector3(  # type: ignore[no-untyped-call]
+            x=odom.twist.linear.x, y=odom.twist.linear.y, z=odom.twist.linear.z
+        ),
+        angular=ROSVector3(  # type: ignore[no-untyped-call]
+            x=odom.twist.angular.x, y=odom.twist.angular.y, z=odom.twist.angular.z
+        ),
+    )
+    return ros_msg
 
 
 __all__ = ["ROSNav", "ros_nav"]
