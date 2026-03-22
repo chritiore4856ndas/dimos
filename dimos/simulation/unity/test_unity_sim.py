@@ -168,7 +168,7 @@ class TestPickle:
         m = UnityBridgeModule(unity_binary="")
         m2 = pickle.loads(pickle.dumps(m))
         assert hasattr(m2, "_cmd_lock")
-        assert m2._running is False
+        assert not m2._running.is_set()
         m.stop()
         m2.stop()
 
@@ -186,6 +186,42 @@ class TestROS1Deserialization:
         np.testing.assert_allclose(decoded_pts, pts, atol=1e-5)
         assert frame_id == "map"
 
+    def test_pointcloud2_empty(self):
+        pts = np.zeros((0, 3), dtype=np.float32)
+        data = _build_ros1_pointcloud2(pts)
+        result = deserialize_pointcloud2(data)
+        assert result is not None
+        decoded_pts, _, _ = result
+        assert len(decoded_pts) == 0
+
+    def test_pointcloud2_truncated(self):
+        pts = np.array([[1.0, 2.0, 3.0]], dtype=np.float32)
+        data = _build_ros1_pointcloud2(pts)
+        assert deserialize_pointcloud2(data[:10]) is None
+
+    def test_pointcloud2_garbage(self):
+        assert deserialize_pointcloud2(b"\xff\x00\x01\x02") is None
+
+    def test_compressed_image_truncated(self):
+        from dimos.utils.ros1 import deserialize_compressed_image
+
+        assert deserialize_compressed_image(b"\x03\x00") is None
+
+    def test_serialize_pose_stamped_round_trip(self):
+        from dimos.utils.ros1 import ROS1Reader, read_header, serialize_pose_stamped
+
+        data = serialize_pose_stamped(1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 1.0, frame_id="odom")
+        r = ROS1Reader(data)
+        header = read_header(r)
+        assert header.frame_id == "odom"
+        assert r.f64() == pytest.approx(1.0)
+        assert r.f64() == pytest.approx(2.0)
+        assert r.f64() == pytest.approx(3.0)
+        assert r.f64() == pytest.approx(0.0)  # qx
+        assert r.f64() == pytest.approx(0.0)  # qy
+        assert r.f64() == pytest.approx(0.0)  # qz
+        assert r.f64() == pytest.approx(1.0)  # qw
+
 
 # TCP Bridge — needs sockets, ~1s, runs everywhere
 
@@ -197,25 +233,26 @@ class TestTCPBridge:
         m = UnityBridgeModule(unity_binary="", unity_port=port)
         ts = _wire(m)
 
-        m._running = True
+        m._running.set()
         m._unity_thread = threading.Thread(target=m._unity_loop, daemon=True)
         m._unity_thread.start()
         time.sleep(0.3)
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect(("127.0.0.1", port))
+        try:
+            sock.connect(("127.0.0.1", port))
 
-        dest, data = _recv_tcp(sock)
-        assert dest == "__handshake"
+            dest, data = _recv_tcp(sock)
+            assert dest == "__handshake"
 
-        pts = np.array([[10.0, 20.0, 30.0]], dtype=np.float32)
-        _send_tcp(sock, "/registered_scan", _build_ros1_pointcloud2(pts))
-        time.sleep(0.3)
-
-        m._running = False
-        sock.close()
-        m._unity_thread.join(timeout=3)
-        m.stop()
+            pts = np.array([[10.0, 20.0, 30.0]], dtype=np.float32)
+            _send_tcp(sock, "/registered_scan", _build_ros1_pointcloud2(pts))
+            time.sleep(0.3)
+        finally:
+            m._running.clear()
+            sock.close()
+            m._unity_thread.join(timeout=3)
+            m.stop()
 
         assert len(ts["registered_scan"]._messages) >= 1
         received_pts, _ = ts["registered_scan"]._messages[0].as_numpy()
@@ -230,13 +267,15 @@ class TestKinematicSim:
         m = UnityBridgeModule(unity_binary="", sim_rate=100.0)
         ts = _wire(m)
 
-        m._running = True
+        m._running.set()
         m._sim_thread = threading.Thread(target=m._sim_loop, daemon=True)
         m._sim_thread.start()
-        time.sleep(0.2)
-        m._running = False
-        m._sim_thread.join(timeout=2)
-        m.stop()
+        try:
+            time.sleep(0.2)
+        finally:
+            m._running.clear()
+            m._sim_thread.join(timeout=2)
+            m.stop()
 
         assert len(ts["odometry"]._messages) > 5
         assert ts["odometry"]._messages[0].frame_id == "map"
@@ -246,13 +285,15 @@ class TestKinematicSim:
         ts = _wire(m)
 
         m._on_cmd_vel(Twist(linear=[1.0, 0.0, 0.0], angular=[0.0, 0.0, 0.0]))
-        m._running = True
+        m._running.set()
         m._sim_thread = threading.Thread(target=m._sim_loop, daemon=True)
         m._sim_thread.start()
-        time.sleep(1.0)
-        m._running = False
-        m._sim_thread.join(timeout=2)
-        m.stop()
+        try:
+            time.sleep(1.0)
+        finally:
+            m._running.clear()
+            m._sim_thread.join(timeout=2)
+            m.stop()
 
         last_odom = ts["odometry"]._messages[-1]
         assert last_odom.x > 0.5

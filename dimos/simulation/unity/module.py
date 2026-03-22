@@ -35,6 +35,7 @@ import os
 from pathlib import Path
 import platform
 from queue import Empty, Queue
+import signal
 import socket
 import struct
 import subprocess
@@ -42,6 +43,7 @@ import threading
 import time
 from typing import Any
 
+import cv2
 import numpy as np
 from pydantic import Field
 from reactivex.disposable import Disposable
@@ -73,6 +75,11 @@ PI = math.pi
 _LFS_ASSET = "unity_sim_x86"
 _SUPPORTED_SYSTEMS = {"Linux"}
 _SUPPORTED_ARCHS = {"x86_64", "AMD64"}
+
+# Read timeout for the Unity TCP connection (seconds).  If Unity stops
+# sending data for longer than this the bridge treats it as a hung
+# connection and drops it.
+_BRIDGE_READ_TIMEOUT = 30.0
 
 
 # TCP protocol helpers
@@ -157,7 +164,9 @@ class UnityBridgeConfig(ModuleConfig):
     unity_connect_timeout: float = 30.0
 
     # TCP server settings (we listen; Unity connects to us).
-    unity_host: str = "0.0.0.0"
+    # Default to loopback — set to "0.0.0.0" explicitly if Unity runs
+    # on a different machine.
+    unity_host: str = "127.0.0.1"
     unity_port: int = 10000
 
     # Run Unity with no visible window (set -batchmode -nographics).
@@ -178,6 +187,22 @@ class UnityBridgeConfig(ModuleConfig):
 
     # Kinematic sim rate (Hz) for odometry integration
     sim_rate: float = 200.0
+
+
+# Camera intrinsics constants.
+#
+# The Unity camera produces a 360° cylindrical panorama (1920×640).
+# A true pinhole model cannot represent this, so we approximate with
+# a 120° horizontal FOV window.  Both CameraInfo and the Rerun static
+# pinhole use the SAME focal length so downstream consumers see
+# consistent intrinsics.
+_CAM_WIDTH = 1920
+_CAM_HEIGHT = 640
+_CAM_HFOV_RAD = math.radians(120.0)
+_CAM_FX = (_CAM_WIDTH / 2.0) / math.tan(_CAM_HFOV_RAD / 2.0)
+_CAM_FY = _CAM_FX
+_CAM_CX = _CAM_WIDTH / 2.0
+_CAM_CY = _CAM_HEIGHT / 2.0
 
 
 # Module
@@ -206,27 +231,14 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
     semantic_image: Out[Image]
     camera_info: Out[CameraInfo]
 
-    # Rerun static config for 3D camera projection — use this when building
-    # your rerun_config so the panoramic image renders correctly in 3D.
-    #
-    # Usage:
-    #   rerun_config = {
-    #       "static": {"world/color_image": UnityBridgeModule.rerun_static_pinhole},
-    #       "visual_override": {"world/camera_info": UnityBridgeModule.rerun_suppress_camera_info},
-    #   }
     @staticmethod
     def rerun_static_pinhole(rr: Any) -> list[Any]:
         """Static Pinhole + Transform3D for the Unity panoramic camera."""
-        width, height = 1920, 640
-        hfov_rad = math.radians(120.0)
-        fx = (width / 2.0) / math.tan(hfov_rad / 2.0)
-        fy = fx
-        cx, cy = width / 2.0, height / 2.0
         return [
             rr.Pinhole(
-                resolution=[width, height],
-                focal_length=[fx, fy],
-                principal_point=[cx, cy],
+                resolution=[_CAM_WIDTH, _CAM_HEIGHT],
+                focal_length=[_CAM_FX, _CAM_FY],
+                principal_point=[_CAM_CX, _CAM_CY],
                 camera_xyz=rr.ViewCoordinates.RDF,
             ),
             rr.Transform3D(
@@ -255,7 +267,7 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
         self._yaw_rate = 0.0
         self._cmd_lock = threading.Lock()
         self._state_lock = threading.Lock()
-        self._running = False
+        self._running = threading.Event()
         self._sim_thread: threading.Thread | None = None
         self._unity_thread: threading.Thread | None = None
         self._unity_connected = False
@@ -274,6 +286,7 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
             "_unity_process",
             "_send_queue",
             "_unity_ready",
+            "_running",
         ):
             state.pop(key, None)
         return state
@@ -287,7 +300,7 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
         self._unity_process = None
         self._send_queue = Queue()
         self._unity_ready = threading.Event()
-        self._running = False
+        self._running = threading.Event()
         self._binary_path = self._resolve_binary()
 
     @rpc
@@ -295,7 +308,7 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
         super().start()
         self._disposables.add(Disposable(self.cmd_vel.subscribe(self._on_cmd_vel)))
         self._disposables.add(Disposable(self.terrain_map.subscribe(self._on_terrain)))
-        self._running = True
+        self._running.set()
         self._sim_thread = threading.Thread(target=self._sim_loop, daemon=True)
         self._sim_thread.start()
         self._unity_thread = threading.Thread(target=self._unity_loop, daemon=True)
@@ -304,19 +317,20 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
 
     @rpc
     def stop(self) -> None:
-        self._running = False
+        self._running.clear()
         if self._sim_thread:
             self._sim_thread.join(timeout=2.0)
         if self._unity_thread:
             self._unity_thread.join(timeout=2.0)
         if self._unity_process is not None and self._unity_process.poll() is None:
-            import signal as _sig
-
             logger.info(f"Stopping Unity (pid={self._unity_process.pid})")
-            self._unity_process.send_signal(_sig.SIGTERM)
+            self._unity_process.send_signal(signal.SIGTERM)
             try:
                 self._unity_process.wait(timeout=5)
-            except Exception:
+            except subprocess.TimeoutExpired:
+                logger.warning(
+                    f"Unity pid={self._unity_process.pid} did not exit after SIGTERM, killing"
+                )
                 self._unity_process.kill()
             self._unity_process = None
         super().stop()
@@ -422,21 +436,21 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
 
     def _unity_loop(self) -> None:
         server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server_sock.bind((self.config.unity_host, self.config.unity_port))
-        server_sock.listen(1)
-        server_sock.settimeout(2.0)
-        logger.info(f"TCP server on :{self.config.unity_port}")
-
         try:
-            while self._running:
+            server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            server_sock.bind((self.config.unity_host, self.config.unity_port))
+            server_sock.listen(1)
+            server_sock.settimeout(2.0)
+            logger.info(f"TCP server on :{self.config.unity_port}")
+
+            while self._running.is_set():
                 try:
                     conn, addr = server_sock.accept()
                     logger.info(f"Unity connected from {addr}")
                     try:
                         self._bridge_connection(conn)
                     except Exception as e:
-                        logger.info(f"Unity connection ended: {e}")
+                        logger.warning(f"Unity connection ended: {e}")
                     finally:
                         with self._state_lock:
                             self._unity_connected = False
@@ -444,7 +458,7 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
                 except TimeoutError:
                     continue
                 except Exception as e:
-                    if self._running:
+                    if self._running.is_set():
                         logger.warning(f"TCP server error: {e}")
                         time.sleep(1.0)
         finally:
@@ -452,13 +466,13 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
 
     def _bridge_connection(self, sock: socket.socket) -> None:
         # Drain stale messages from a previous session.
-        while not self._send_queue.empty():
+        while True:
             try:
                 self._send_queue.get_nowait()
             except Empty:
                 break
 
-        sock.settimeout(None)
+        sock.settimeout(_BRIDGE_READ_TIMEOUT)
         with self._state_lock:
             self._unity_connected = True
         self._unity_ready.set()
@@ -477,8 +491,11 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
         sender.start()
 
         try:
-            while self._running and not halt.is_set():
-                dest, data = _read_tcp_message(sock)
+            while self._running.is_set() and not halt.is_set():
+                try:
+                    dest, data = _read_tcp_message(sock)
+                except TimeoutError:
+                    continue
                 if dest == "":
                     continue
                 elif dest.startswith("__"):
@@ -501,7 +518,8 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
                     _write_tcp_message(sock, dest, data)
             except Empty:
                 continue
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Unity sender error: {e}")
                 halt.set()
 
     def _handle_syscommand(self, dest: str, data: bytes) -> None:
@@ -540,8 +558,6 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
             if img_result is not None:
                 img_bytes, _fmt, _frame_id, ts = img_result
                 try:
-                    import cv2
-
                     decoded = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
                     if decoded is not None:
                         img = Image.from_numpy(decoded, frame_id="camera", ts=ts)
@@ -555,22 +571,17 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
                     logger.warning(f"Image decode failed ({topic}): {e}")
 
     def _publish_camera_info(self, width: int, height: int, ts: float) -> None:
-        # NOTE: The Unity camera is a 360-degree cylindrical panorama (1920x640).
-        # CameraInfo assumes a pinhole model, so this is an approximation.
-        # The Rerun static pinhole (rerun_static_pinhole) uses a different focal
-        # length tuned for a 120-deg FOV window because Rerun has no cylindrical
-        # projection support. These intentionally differ.
-        fx = fy = height / 2.0
-        cx, cy = width / 2.0, height / 2.0
+        # Use the same intrinsics as rerun_static_pinhole (120° HFOV pinhole
+        # approximation of the cylindrical panorama).
         self.camera_info.publish(
             CameraInfo(
                 height=height,
                 width=width,
                 distortion_model="plumb_bob",
                 D=[0.0, 0.0, 0.0, 0.0, 0.0],
-                K=[fx, 0.0, cx, 0.0, fy, cy, 0.0, 0.0, 1.0],
+                K=[_CAM_FX, 0.0, _CAM_CX, 0.0, _CAM_FY, _CAM_CY, 0.0, 0.0, 1.0],
                 R=[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-                P=[fx, 0.0, cx, 0.0, 0.0, fy, cy, 0.0, 0.0, 0.0, 1.0, 0.0],
+                P=[_CAM_FX, 0.0, _CAM_CX, 0.0, 0.0, _CAM_FY, _CAM_CY, 0.0, 0.0, 0.0, 1.0, 0.0],
                 frame_id="camera",
                 ts=ts,
             )
@@ -585,29 +596,32 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
     def _sim_loop(self) -> None:
         dt = 1.0 / self.config.sim_rate
 
-        while self._running:
+        while self._running.is_set():
             t0 = time.monotonic()
 
             with self._cmd_lock:
                 fwd, left, yaw_rate = self._fwd_speed, self._left_speed, self._yaw_rate
 
-            prev_z = self._z
-
-            self._yaw += dt * yaw_rate
-            if self._yaw > PI:
-                self._yaw -= 2 * PI
-            elif self._yaw < -PI:
-                self._yaw += 2 * PI
-
-            cy, sy = math.cos(self._yaw), math.sin(self._yaw)
-            self._x += dt * cy * fwd - dt * sy * left
-            self._y += dt * sy * fwd + dt * cy * left
             with self._state_lock:
-                terrain_z = self._terrain_z
-            self._z = terrain_z + self.config.vehicle_height
+                prev_z = self._z
+
+                self._yaw += dt * yaw_rate
+                if self._yaw > PI:
+                    self._yaw -= 2 * PI
+                elif self._yaw < -PI:
+                    self._yaw += 2 * PI
+
+                cy, sy = math.cos(self._yaw), math.sin(self._yaw)
+                self._x += dt * cy * fwd - dt * sy * left
+                self._y += dt * sy * fwd + dt * cy * left
+                self._z = self._terrain_z + self.config.vehicle_height
+
+                x, y, z = self._x, self._y, self._z
+                yaw = self._yaw
+                roll, pitch = self._roll, self._pitch
 
             now = time.time()
-            quat = Quaternion.from_euler(Vector3(self._roll, self._pitch, self._yaw))
+            quat = Quaternion.from_euler(Vector3(roll, pitch, yaw))
 
             self.odometry.publish(
                 Odometry(
@@ -615,11 +629,11 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
                     frame_id="map",
                     child_frame_id="sensor",
                     pose=Pose(
-                        position=[self._x, self._y, self._z],
+                        position=[x, y, z],
                         orientation=[quat.x, quat.y, quat.z, quat.w],
                     ),
                     twist=Twist(
-                        linear=[fwd, left, (self._z - prev_z) * self.config.sim_rate],
+                        linear=[fwd, left, (z - prev_z) * self.config.sim_rate],
                         angular=[0.0, 0.0, yaw_rate],
                     ),
                 )
@@ -627,7 +641,7 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
 
             self.tf.publish(
                 Transform(
-                    translation=Vector3(self._x, self._y, self._z),
+                    translation=Vector3(x, y, z),
                     rotation=quat,
                     frame_id="map",
                     child_frame_id="sensor",
@@ -647,15 +661,7 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
             if unity_connected:
                 self._send_to_unity(
                     "/unity_sim/set_model_state",
-                    serialize_pose_stamped(
-                        self._x,
-                        self._y,
-                        self._z,
-                        quat.x,
-                        quat.y,
-                        quat.z,
-                        quat.w,
-                    ),
+                    serialize_pose_stamped(x, y, z, quat.x, quat.y, quat.z, quat.w),
                 )
 
             sleep_for = dt - (time.monotonic() - t0)
