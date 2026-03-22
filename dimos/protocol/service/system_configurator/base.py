@@ -21,7 +21,7 @@ import os
 import subprocess
 from typing import Any
 
-import typer
+from dimos.utils.prompt import confirm
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,7 @@ def configure_system(checks: list[SystemConfigurator], check_only: bool = False)
     if check_only:
         return
 
-    if not typer.confirm("\nApply these changes now?"):
+    if not confirm("\nApply these changes now?"):
         if any(check.critical for check in failing):
             raise SystemExit(1)
         return
