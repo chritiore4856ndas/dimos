@@ -302,7 +302,7 @@ class ROSNav(Module, NavigationInterface):
     goal_request: In[PoseStamped]
     clicked_point: In[PointStamped]
     stop_explore_cmd: In[Bool]
-    teleop_cmd_vel: In[Twist]
+    tele_cmd_vel: In[Twist]
 
     color_image: Out[Image]
     lidar: Out[PointCloud2]
@@ -405,7 +405,7 @@ class ROSNav(Module, NavigationInterface):
         self.goal_request.subscribe(self._on_goal_pose)
         self.clicked_point.subscribe(lambda pt: self._on_goal_pose(pt.to_pose_stamped()))
         self.stop_explore_cmd.subscribe(self._on_stop_cmd)
-        self.teleop_cmd_vel.subscribe(self._on_teleop_cmd_vel)
+        self.tele_cmd_vel.subscribe(self._on_tele_cmd_vel)
         logger.info("NavigationModule started with ROS2 spinning")
 
     def _spin_node(self) -> None:
@@ -516,7 +516,7 @@ class ROSNav(Module, NavigationInterface):
             ros_pose = _pose_stamped_to_ros(self._last_odom)
             self.goal_pose_pub.publish(ros_pose)
 
-    def _on_teleop_cmd_vel(self, msg: Twist) -> None:
+    def _on_tele_cmd_vel(self, msg: Twist) -> None:
         with self._teleop_lock:
             if not self._teleop_active:
                 self._teleop_active = True

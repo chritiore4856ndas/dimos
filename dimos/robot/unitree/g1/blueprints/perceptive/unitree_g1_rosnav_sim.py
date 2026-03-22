@@ -93,7 +93,7 @@ unitree_g1_rosnav_sim = (
     )
     .remappings(
         [
-            (WebsocketVisModule, "cmd_vel", "teleop_cmd_vel"),
+            (WebsocketVisModule, "cmd_vel", "tele_cmd_vel"),
         ]
     )
     .global_config(n_workers=4, robot_model="unitree_g1")
