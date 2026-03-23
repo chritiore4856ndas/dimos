@@ -34,6 +34,7 @@ from pathlib import Path
 import platform
 import threading
 import time
+from typing import Any
 
 import numpy as np
 import pytest
@@ -159,14 +160,14 @@ class MockVehicle(Module[MockVehicleConfig]):
         self._sensor_thread: threading.Thread | None = None
         self._sim_thread: threading.Thread | None = None
 
-    def __getstate__(self) -> dict:
+    def __getstate__(self) -> dict[str, Any]:
         state = super().__getstate__()
         state.pop("_cmd_lock", None)
         state.pop("_sensor_thread", None)
         state.pop("_sim_thread", None)
         return state
 
-    def __setstate__(self, state: dict) -> None:
+    def __setstate__(self, state: dict[str, Any]) -> None:
         super().__setstate__(state)
         self._cmd_lock = threading.Lock()
         self._sensor_thread = None

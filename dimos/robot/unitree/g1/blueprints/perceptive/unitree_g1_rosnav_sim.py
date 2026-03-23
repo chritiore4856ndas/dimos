@@ -36,7 +36,7 @@ from dimos.robot.unitree.g1.blueprints.primitive._vis import (
     _static_path_frame,
 )
 from dimos.visualization.vis_module import vis_module
-from dimos.web.websocket_vis.websocket_vis_module import WebsocketVisModule, websocket_vis
+from dimos.web.websocket_vis.websocket_vis_module import WebsocketVisModule
 
 
 def _static_sim_pinhole(rr: Any) -> list[Any]:
@@ -88,7 +88,7 @@ unitree_g1_rosnav_sim = (
     autoconnect(
         _vis_sim,
         _mapper,
-        websocket_vis(),
+        WebsocketVisModule.blueprint(),
         ROSNav.blueprint(mode="simulation", vehicle_height=1.24),
     )
     .remappings(

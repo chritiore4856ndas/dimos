@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import threading
 import time
+from typing import Any
 
 import numpy as np
 
@@ -72,7 +73,7 @@ class TerrainMapExt(Module[TerrainMapExtConfig]):
         self._robot_x = 0.0
         self._robot_y = 0.0
 
-    def __getstate__(self) -> dict:
+    def __getstate__(self) -> dict[str, Any]:
         s = super().__getstate__()
         for k in ("_lock", "_thread", "_voxels"):
             s.pop(k, None)

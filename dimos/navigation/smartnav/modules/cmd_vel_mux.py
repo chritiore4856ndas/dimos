@@ -22,6 +22,7 @@ After a cooldown period with no teleop input, nav commands resume.
 from __future__ import annotations
 
 import threading
+from typing import Any
 
 from dimos.core.module import Module, ModuleConfig
 from dimos.core.stream import In, Out
@@ -53,13 +54,13 @@ class CmdVelMux(Module[CmdVelMuxConfig]):
         self._lock = threading.Lock()
         self._timer: threading.Timer | None = None
 
-    def __getstate__(self) -> dict:
+    def __getstate__(self) -> dict[str, Any]:
         state = super().__getstate__()
         state.pop("_lock", None)
         state.pop("_timer", None)
         return state
 
-    def __setstate__(self, state: dict) -> None:
+    def __setstate__(self, state: dict[str, Any]) -> None:
         super().__setstate__(state)
         self._lock = threading.Lock()
         self._timer = None

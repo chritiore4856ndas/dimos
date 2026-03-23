@@ -27,6 +27,7 @@ from pathlib import Path
 import platform
 import threading
 import time
+from typing import Any
 
 import numpy as np
 import pytest
@@ -95,7 +96,7 @@ class Vehicle(Module[VehicleConfig]):
         self._running = False
         self._threads: list[threading.Thread] = []
 
-    def __getstate__(self) -> dict:
+    def __getstate__(self) -> dict[str, Any]:
         s = super().__getstate__()
         for k in ("_lock", "_threads"):
             s.pop(k, None)

@@ -348,7 +348,7 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
         self._unity_process: subprocess.Popen | None = None  # type: ignore[type-arg]
         self._send_queue: Queue[tuple[str, bytes]] = Queue()
 
-    def __getstate__(self) -> dict:
+    def __getstate__(self) -> dict[str, Any]:
         state = super().__getstate__()
         for key in (
             "_cmd_lock",
@@ -361,7 +361,7 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
             state.pop(key, None)
         return state
 
-    def __setstate__(self, state: dict) -> None:
+    def __setstate__(self, state: dict[str, Any]) -> None:
         super().__setstate__(state)
         self._cmd_lock = threading.Lock()
         self._sim_thread = None

@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import threading
 import time
+from typing import Any
 
 from dimos.core.module import Module, ModuleConfig
 from dimos.core.stream import In, Out
@@ -67,13 +68,13 @@ class AriseSimAdapter(Module[AriseSimAdapterConfig]):
         self._thread: threading.Thread | None = None
         self._latest_odom: Odometry | None = None
 
-    def __getstate__(self) -> dict:
+    def __getstate__(self) -> dict[str, Any]:
         state = super().__getstate__()
         state.pop("_lock", None)
         state.pop("_thread", None)
         return state
 
-    def __setstate__(self, state: dict) -> None:
+    def __setstate__(self, state: dict[str, Any]) -> None:
         super().__setstate__(state)
         self._lock = threading.Lock()
         self._thread = None
@@ -115,7 +116,9 @@ class AriseSimAdapter(Module[AriseSimAdapterConfig]):
             body_cloud.frame_id = "sensor"
             self.raw_points._transport.publish(body_cloud)
         except Exception:
-            pass
+            import traceback
+
+            print(f"[AriseSimAdapter] scan transform failed: {traceback.format_exc()}")
 
     def _imu_loop(self) -> None:
         """Publish synthetic IMU at high rate from latest odom."""

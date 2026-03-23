@@ -17,13 +17,13 @@
 
 from dimos.core.blueprints import autoconnect
 from dimos.mapping.costmapper import CostMapper
-from dimos.mapping.voxels import voxel_mapper
+from dimos.mapping.voxels import VoxelGridMapper
 from dimos.navigation.frontier_exploration.wavefront_frontier_goal_selector import (
     WavefrontFrontierExplorer,
 )
 
 _mapper = autoconnect(
-    voxel_mapper(voxel_size=0.3),
+    VoxelGridMapper.blueprint(voxel_size=0.3),
     CostMapper.blueprint(),
     WavefrontFrontierExplorer.blueprint(),
 )

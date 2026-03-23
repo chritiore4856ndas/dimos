@@ -32,6 +32,7 @@ from pathlib import Path
 import platform
 import threading
 import time
+from typing import Any
 
 import numpy as np
 import pytest
@@ -90,12 +91,12 @@ class MockSensor(Module[MockSensorConfig]):
         self._running = False
         self._thread: threading.Thread | None = None
 
-    def __getstate__(self) -> dict:
+    def __getstate__(self) -> dict[str, Any]:
         state = super().__getstate__()
         state.pop("_thread", None)
         return state
 
-    def __setstate__(self, state: dict) -> None:
+    def __setstate__(self, state: dict[str, Any]) -> None:
         super().__setstate__(state)
         self._thread = None
 

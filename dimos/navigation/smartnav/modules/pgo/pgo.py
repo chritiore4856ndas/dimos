@@ -27,6 +27,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import threading
 import time
+from typing import Any
 
 import gtsam
 import numpy as np
@@ -387,13 +388,13 @@ class PGO(Module[PGOConfig]):
         self._has_odom = False
         self._last_global_map_time = 0.0
 
-    def __getstate__(self) -> dict:
+    def __getstate__(self) -> dict[str, Any]:
         state = super().__getstate__()
         for k in ("_lock", "_thread", "_pgo"):
             state.pop(k, None)
         return state
 
-    def __setstate__(self, state: dict) -> None:
+    def __setstate__(self, state: dict[str, Any]) -> None:
         super().__setstate__(state)
         self._lock = threading.Lock()
         self._thread = None

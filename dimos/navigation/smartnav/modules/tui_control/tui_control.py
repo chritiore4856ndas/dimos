@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import threading
 import time
+from typing import Any
 
 from dimos.core.module import Module, ModuleConfig
 from dimos.core.stream import Out
@@ -61,14 +62,14 @@ class TUIControlModule(Module[TUIControlConfig]):
         self._publish_thread: threading.Thread | None = None
         self._input_thread: threading.Thread | None = None
 
-    def __getstate__(self) -> dict:
+    def __getstate__(self) -> dict[str, Any]:
         state = super().__getstate__()
         state.pop("_lock", None)
         state.pop("_publish_thread", None)
         state.pop("_input_thread", None)
         return state
 
-    def __setstate__(self, state: dict) -> None:
+    def __setstate__(self, state: dict[str, Any]) -> None:
         super().__setstate__(state)
         self._lock = threading.Lock()
         self._publish_thread = None
