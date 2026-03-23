@@ -1038,7 +1038,6 @@ struct GraphPlanner {
             path_momentum_counter++;
             return true;
         }
-        printf("[FAR] FAIL TO REACH GOAL\n");
         // Don't reset the goal — keep it alive so we can retry once the
         // visibility graph grows (robot needs to move first).
         is_fail = true;
@@ -1479,9 +1478,13 @@ int main(int argc, char** argv) {
     G.kAngleNoise      = angle_noise_deg / 180.0f * (float)M_PI;
     G.kAcceptAlign     = accept_align_deg / 180.0f * (float)M_PI;
 
+    // Verbose logging only when DEBUG=1
+    const char* debug_env = std::getenv("DEBUG");
+    bool verbose = (debug_env && std::string(debug_env) == "1");
+
     printf("[FAR] Configuration:\n");
-    printf("  robot_dim=%.2f  sensor_range=%.1f  voxel=%.2f  freq=%.1f\n",
-           G.robot_dim, G.kSensorRange, G.kLeafSize, main_freq);
+    printf("  robot_dim=%.2f  sensor_range=%.1f  voxel=%.2f  freq=%.1f  verbose=%d\n",
+           G.robot_dim, G.kSensorRange, G.kLeafSize, main_freq, verbose);
     printf("  static_env=%d  multi_layer=%d  converge_dist=%.2f\n",
            G.is_static_env, G.is_multi_layer, converge_d);
 
@@ -1570,7 +1573,7 @@ int main(int argc, char** argv) {
         }
 
         // Debug: periodic status (every ~2s at 5Hz)
-        {
+        if (verbose) {
             static int dbg_ctr = 0;
             if (++dbg_ctr % 10 == 0) {
                 auto gp_tmp = planner.goal_node;
@@ -1672,14 +1675,16 @@ int main(int argc, char** argv) {
                 lcm.publish(topic_wp, &wp_msg);
 
                 float dist_to_goal = (odom_node->position - cur_goal).norm();
-                printf("[FAR] GRAPH PATH → wp=(%.2f,%.2f,%.2f)  "
-                       "path_nodes=%zu  graph_nodes=%zu  robot=(%.2f,%.2f)  "
-                       "goal=(%.2f,%.2f)  dist_to_goal=%.1fm  vg_time=%.1fms\n",
-                       nav_wp->position.x, nav_wp->position.y, nav_wp->position.z,
-                       global_path.size(), nav_graph.size(),
-                       odom_node->position.x, odom_node->position.y,
-                       cur_goal.x, cur_goal.y, dist_to_goal, vg_time);
-                fflush(stdout);
+                if (verbose) {
+                    printf("[FAR] GRAPH PATH → wp=(%.2f,%.2f,%.2f)  "
+                           "path_nodes=%zu  graph_nodes=%zu  robot=(%.2f,%.2f)  "
+                           "goal=(%.2f,%.2f)  dist_to_goal=%.1fm  vg_time=%.1fms\n",
+                           nav_wp->position.x, nav_wp->position.y, nav_wp->position.z,
+                           global_path.size(), nav_graph.size(),
+                           odom_node->position.x, odom_node->position.y,
+                           cur_goal.x, cur_goal.y, dist_to_goal, vg_time);
+                    fflush(stdout);
+                }
             } else if (is_fail) {
                 // Graph too sparse to plan — do NOT publish the goal
                 // directly as waypoint (that drives the robot into walls).
@@ -1694,14 +1699,16 @@ int main(int argc, char** argv) {
                     (void)cn; goal_connected++;
                 }
 
-                printf("[FAR] FALLBACK DIRECT → goal=(%.2f,%.2f,%.2f)  "
-                       "robot=(%.2f,%.2f)  graph_nodes=%zu  traversable=%d  "
-                       "goal_edges=%d  dist=%.1fm  reason=graph_too_sparse\n",
-                       cur_goal.x, cur_goal.y, cur_goal.z,
-                       odom_node->position.x, odom_node->position.y,
-                       nav_graph.size(), traversable_count, goal_connected,
-                       (odom_node->position - cur_goal).norm());
-                fflush(stdout);
+                if (verbose) {
+                    printf("[FAR] NO ROUTE → goal=(%.2f,%.2f,%.2f)  "
+                           "robot=(%.2f,%.2f)  graph_nodes=%zu  traversable=%d  "
+                           "goal_edges=%d  dist=%.1fm\n",
+                           cur_goal.x, cur_goal.y, cur_goal.z,
+                           odom_node->position.x, odom_node->position.y,
+                           nav_graph.size(), traversable_count, goal_connected,
+                           (odom_node->position - cur_goal).norm());
+                    fflush(stdout);
+                }
             }
 
             if (is_succeed) {
