@@ -21,9 +21,16 @@ Full navigation stack with:
 - Local planner for reactive obstacle avoidance
 - Path follower for velocity control
 
+Odometry routing (per CMU ICRA 2022 Fig. 11):
+- Local modules (TerrainAnalysis, LocalPlanner, PathFollower, SensorScanGen):
+  use raw odometry — they work in the local odometry frame.
+- Global planners (FarPlanner, ClickToGoal): use PGO corrected_odometry —
+  they plan at the global scale and need loop-closure-corrected positions.
+
 Data flow:
-    Click → ClickToGoal → goal → FarPlanner → way_point → LocalPlanner → path
-    → PathFollower → nav_cmd_vel → CmdVelMux → cmd_vel → UnityBridgeModule
+    Click → ClickToGoal (corrected_odom) → goal → FarPlanner (corrected_odom)
+    → way_point → LocalPlanner (raw odom) → path → PathFollower (raw odom)
+    → nav_cmd_vel → CmdVelMux → cmd_vel → UnityBridgeModule
 
     registered_scan + odometry → PGO → corrected_odometry + global_map
 """
@@ -155,6 +162,13 @@ unitree_g1_nav_sim = autoconnect(
         (PathFollower, "cmd_vel", "nav_cmd_vel"),
         # Unity needs the extended (persistent) terrain map for Z-height, not the local one
         (UnityBridgeModule, "terrain_map", "terrain_map_ext"),
+        # Global-scale planners use PGO-corrected odometry (per CMU ICRA 2022):
+        # "Loop closure adjustments are used by the high-level planners since
+        # they are in charge of planning at the global scale. Modules such as
+        # local planner and terrain analysis only care about the local
+        # environment surrounding the vehicle and work in the odometry frame."
+        (FarPlanner, "odometry", "corrected_odometry"),
+        (ClickToGoal, "odometry", "corrected_odometry"),
     ]
 ).global_config(n_workers=8, robot_model="unitree_g1", simulation=True)
 
