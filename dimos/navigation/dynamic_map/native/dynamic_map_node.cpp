@@ -75,7 +75,7 @@ struct DynamicMapHandler {
     float             max_range;
     float             occ_threshold;
 
-    std::mutex        odom_mutex;
+    std::mutex        tree_mutex;  // protects tree + odom state
     bool              has_odom = false;
     octomap::point3d  sensor_origin{0.0f, 0.0f, 0.0f};
 
@@ -83,7 +83,7 @@ struct DynamicMapHandler {
     void onOdom(const lcm::ReceiveBuffer* /*rbuf*/,
                 const std::string& /*channel*/,
                 const geometry_msgs::PoseStamped* msg) {
-        std::lock_guard<std::mutex> lk(odom_mutex);
+        std::lock_guard<std::mutex> lk(tree_mutex);
         sensor_origin = octomap::point3d(
             static_cast<float>(msg->pose.position.x),
             static_cast<float>(msg->pose.position.y),
@@ -98,7 +98,7 @@ struct DynamicMapHandler {
     void onScan(const lcm::ReceiveBuffer* /*rbuf*/,
                 const std::string& /*channel*/,
                 const sensor_msgs::PointCloud2* msg) {
-        std::lock_guard<std::mutex> lk(odom_mutex);
+        std::lock_guard<std::mutex> lk(tree_mutex);
         if (!has_odom) return;
 
         // Parse scan into OctoMap point cloud
@@ -123,10 +123,9 @@ struct DynamicMapHandler {
 
     // --- periodic map publish ---
     void publishMap() {
+        std::lock_guard<std::mutex> lk(tree_mutex);
         std::vector<smartnav::PointXYZI> occupied;
         occupied.reserve(4096);
-
-        const float half = static_cast<float>(tree->getResolution()) * 0.5f;
 
         for (auto it = tree->begin_leafs(); it != tree->end_leafs(); ++it) {
             if (it->getLogOdds() > occ_threshold) {
@@ -135,7 +134,6 @@ struct DynamicMapHandler {
                 p.y = static_cast<float>(it.getY());
                 p.z = static_cast<float>(it.getZ());
                 p.intensity = it->getLogOdds();
-                (void)half;  // centres are already at voxel centre in OctoMap
                 occupied.push_back(p);
             }
         }
@@ -182,9 +180,10 @@ int main(int argc, char** argv) {
 
     // --- OctoMap ---
     octomap::OcTree tree(static_cast<double>(resolution));
-    // Tighter clamping than default to allow dynamic removal
-    tree.setClampingThresMin(0.1192);  // log-odds ≈ -2.0
-    tree.setClampingThresMax(0.9707);  // log-odds ≈  3.5
+    // Tighter clamping than default to allow dynamic removal.
+    // OctoMap API takes probability (0-1); these correspond to log-odds ≈ -2.0 / +3.5.
+    tree.setClampingThresMin(0.1192);
+    tree.setClampingThresMax(0.9707);
 
     // --- handler ---
     DynamicMapHandler handler;
