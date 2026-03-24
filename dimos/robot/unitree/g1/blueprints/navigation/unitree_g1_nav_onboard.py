@@ -42,6 +42,7 @@ from dimos.navigation.smartnav.blueprints._rerun_helpers import (
     waypoint_override,
 )
 from dimos.navigation.smartnav.modules.click_to_goal.click_to_goal import ClickToGoal
+from dimos.navigation.smartnav.modules.cmd_vel_mux import CmdVelMux
 from dimos.navigation.smartnav.modules.local_planner.local_planner import LocalPlanner
 from dimos.navigation.smartnav.modules.path_follower.path_follower import PathFollower
 from dimos.navigation.smartnav.modules.sensor_scan_generation.sensor_scan_generation import (
@@ -52,6 +53,7 @@ from dimos.navigation.smartnav.modules.terrain_map_ext.terrain_map_ext import Te
 from dimos.protocol.pubsub.impl.lcmpubsub import LCM
 from dimos.robot.unitree.g1.effectors.high_level.dds_sdk import G1HighLevelDdsSdk
 from dimos.visualization.rerun.bridge import RerunBridgeModule, _resolve_viewer_mode
+from dimos.visualization.rerun.websocket_server import RerunWebSocketServer
 
 
 def _rerun_blueprint() -> Any:
@@ -133,13 +135,17 @@ unitree_g1_nav_onboard = (
             ]
         ),
         ClickToGoal.blueprint(),
+        CmdVelMux.blueprint(),
         G1HighLevelDdsSdk.blueprint(),
         RerunBridgeModule.blueprint(viewer_mode=_resolve_viewer_mode(), **_rerun_config),
+        RerunWebSocketServer.blueprint(),
     )
     .remappings(
         [
             # FastLio2 outputs "lidar"; SmartNav modules expect "registered_scan"
             (FastLio2, "lidar", "registered_scan"),
+            # PathFollower cmd_vel → CmdVelMux nav input (avoid name collision with mux output)
+            (PathFollower, "cmd_vel", "nav_cmd_vel"),
         ]
     )
     .global_config(n_workers=8, robot_model="unitree_g1")
