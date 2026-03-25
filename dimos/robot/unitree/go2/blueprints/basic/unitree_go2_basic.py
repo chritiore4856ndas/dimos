@@ -41,6 +41,10 @@ _transports_base = (
 )
 
 
+def _suppress(_: Any) -> None:
+    return None
+
+
 def _convert_camera_info(camera_info: Any) -> Any:
     return camera_info.to_rerun(
         image_topic="/world/color_image",
@@ -99,6 +103,7 @@ rerun_config = {
         "world/camera_info": _convert_camera_info,
         "world/global_map": _convert_global_map,
         "world/navigation_costmap": _convert_navigation_costmap,
+        "world/lidar": _suppress,  # suppress raw lidar cloud in rerun
     },
     # slapping a go2 shaped box on top of tf/base_link
     "static": {
