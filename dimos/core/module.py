@@ -22,6 +22,7 @@ import threading
 from typing import (
     TYPE_CHECKING,
     Any,
+    Literal,
     Protocol,
     get_args,
     get_origin,
@@ -43,6 +44,9 @@ from dimos.protocol.service import BaseConfig, Configurable
 from dimos.protocol.tf import LCMTF, TFSpec
 from dimos.utils import colors
 from dimos.utils.generic import classproperty
+from dimos.utils.thread_utils import AsyncModuleThread, ThreadSafeVal
+
+ModState = Literal["init", "started", "stopping", "stopped"]
 
 if TYPE_CHECKING:
     from dimos.core.blueprints import Blueprint
@@ -60,19 +64,6 @@ class SkillInfo:
     class_name: str
     func_name: str
     args_schema: str
-
-
-def get_loop() -> tuple[asyncio.AbstractEventLoop, threading.Thread | None]:
-    try:
-        running_loop = asyncio.get_running_loop()
-        return running_loop, None
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        thr = threading.Thread(target=loop.run_forever, daemon=True)
-        thr.start()
-        return loop, thr
 
 
 class ModuleConfig(BaseConfig):
@@ -96,20 +87,20 @@ class ModuleBase(Configurable[ModuleConfigT], Resource):
 
     _rpc: RPCSpec | None = None
     _tf: TFSpec[Any] | None = None
-    _loop: asyncio.AbstractEventLoop | None = None
-    _loop_thread: threading.Thread | None
+    _async_thread: AsyncModuleThread
     _disposables: CompositeDisposable
     _bound_rpc_calls: dict[str, RpcCall] = {}
-    _module_closed: bool = False
-    _module_closed_lock: threading.Lock
+    mod_state: ThreadSafeVal[ModState]
 
     rpc_calls: list[str] = []
 
     def __init__(self, config_args: dict[str, Any]):
         super().__init__(**config_args)
-        self._module_closed_lock = threading.Lock()
-        self._loop, self._loop_thread = get_loop()
         self._disposables = CompositeDisposable()
+        self.mod_state = ThreadSafeVal[ModState]("init")
+        self._async_thread = AsyncModuleThread( # NEEDS to be created after self._disposables exists
+            module=self
+        )
         try:
             self.rpc = self.config.rpc_transport()
             self.rpc.serve_module_rpc(self)
@@ -126,38 +117,30 @@ class ModuleBase(Configurable[ModuleConfigT], Resource):
 
     @rpc
     def start(self) -> None:
-        pass
+        with self.mod_state as state:
+            if state == "stopped":
+                raise RuntimeError(f"{type(self).__name__} cannot be restarted after stop")
+            self.mod_state.set("started")
 
     @rpc
     def stop(self) -> None:
-        self._close_module()
+        self._stop()
 
-    def _close_module(self) -> None:
-        with self._module_closed_lock:
-            if self._module_closed:
+    def _stop(self) -> None:
+        with self.mod_state as state:
+            if state in ("stopping", "stopped"):
                 return
-            self._module_closed = True
+            self.mod_state.set("stopping")
 
-        self._close_rpc()
-
-        # Save into local variables to avoid race when stopping concurrently
-        # (from RPC and worker shutdown)
-        loop_thread = getattr(self, "_loop_thread", None)
-        loop = getattr(self, "_loop", None)
-
-        if loop_thread:
-            if loop_thread.is_alive():
-                if loop:
-                    loop.call_soon_threadsafe(loop.stop)
-                loop_thread.join(timeout=2)
-            self._loop = None
-            self._loop_thread = None
+        if self.rpc:
+            self.rpc.stop()  # type: ignore[attr-defined]
+            self.rpc = None  # type: ignore[assignment]
 
         if hasattr(self, "_tf") and self._tf is not None:
             self._tf.stop()
             self._tf = None
         if hasattr(self, "_disposables"):
-            self._disposables.dispose()
+            self._disposables.dispose()  # stops _async_thread via disposable
 
         # Break the In/Out -> owner -> self reference cycle so the instance
         # can be freed by refcount instead of waiting for GC.
@@ -165,19 +148,12 @@ class ModuleBase(Configurable[ModuleConfigT], Resource):
             if isinstance(attr, (In, Out)):
                 attr.owner = None
 
-    def _close_rpc(self) -> None:
-        if self.rpc:
-            self.rpc.stop()  # type: ignore[attr-defined]
-            self.rpc = None  # type: ignore[assignment]
-
     def __getstate__(self):  # type: ignore[no-untyped-def]
         """Exclude unpicklable runtime attributes when serializing."""
         state = self.__dict__.copy()
         # Remove unpicklable attributes
         state.pop("_disposables", None)
-        state.pop("_module_closed_lock", None)
-        state.pop("_loop", None)
-        state.pop("_loop_thread", None)
+        state.pop("_async_thread", None)
         state.pop("_rpc", None)
         state.pop("_tf", None)
         return state
@@ -187,9 +163,7 @@ class ModuleBase(Configurable[ModuleConfigT], Resource):
         self.__dict__.update(state)
         # Reinitialize runtime attributes
         self._disposables = CompositeDisposable()
-        self._module_closed_lock = threading.Lock()
-        self._loop = None
-        self._loop_thread = None
+        self._async_thread = None  # type: ignore[assignment]
         self._rpc = None
         self._tf = None
 
