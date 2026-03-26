@@ -244,7 +244,7 @@ class TestDockerModuleProxyGetattr:
 class TestDockerModuleProxyCleanupReconnect:
     """Tests for DockerModuleProxy._cleanup with docker_reconnect_container."""
 
-    def test_cleanup_skips_stop_when_reconnect(self):
+    def test_cleanup_skips_stop_when_reconnected(self):
         with patch.object(DockerModuleProxy, "__init__", lambda self: None):
             dm = DockerModuleProxy.__new__(DockerModuleProxy)
             dm._running = threading.Event()
@@ -253,8 +253,8 @@ class TestDockerModuleProxyCleanupReconnect:
             dm._unsub_fns = []
             dm.rpc = MagicMock()
             dm.remote_name = "TestModule"
+            dm._reconnected = True
 
-            # reconnect mode: should NOT stop/rm the container
             dm.config = FakeDockerConfig(docker_reconnect_container=True)
             with (
                 patch("dimos.core.docker_module._run") as mock_run,
@@ -264,7 +264,7 @@ class TestDockerModuleProxyCleanupReconnect:
                 mock_run.assert_not_called()
                 mock_rm.assert_not_called()
 
-    def test_cleanup_stops_container_when_not_reconnect(self):
+    def test_cleanup_stops_container_when_not_reconnected(self):
         with patch.object(DockerModuleProxy, "__init__", lambda self: None):
             dm = DockerModuleProxy.__new__(DockerModuleProxy)
             dm._running = threading.Event()
@@ -273,8 +273,8 @@ class TestDockerModuleProxyCleanupReconnect:
             dm._unsub_fns = []
             dm.rpc = MagicMock()
             dm.remote_name = "TestModule"
+            dm._reconnected = False
 
-            # normal mode: should stop and rm the container
             dm.config = FakeDockerConfig(docker_reconnect_container=False)
             with (
                 patch("dimos.core.docker_module._run") as mock_run,
@@ -283,3 +283,23 @@ class TestDockerModuleProxyCleanupReconnect:
                 dm._cleanup()
                 mock_run.assert_called_once()  # docker stop
                 mock_rm.assert_called_once()  # docker rm -f
+
+    def test_stop_skips_remote_rpc_when_reconnected(self):
+        """stop() should not send the remote stop RPC for a reconnected container."""
+        with patch.object(DockerModuleProxy, "__init__", lambda self: None):
+            dm = DockerModuleProxy.__new__(DockerModuleProxy)
+            dm._running = threading.Event()
+            dm._running.set()
+            dm._container_name = "test_container"
+            dm._unsub_fns = []
+            dm.rpc = MagicMock()
+            dm.remote_name = "TestModule"
+            dm._reconnected = True
+            dm.config = FakeDockerConfig(docker_reconnect_container=True)
+
+            with (
+                patch("dimos.core.docker_module._run"),
+                patch("dimos.core.docker_module._remove_container"),
+            ):
+                dm.stop()
+                dm.rpc.call_nowait.assert_not_called()
