@@ -32,7 +32,7 @@ from dimos.utils.threadpool import get_scheduler
 def test_unbound_stream_creation() -> None:
     """Stream() with no args creates an unbound stream."""
     s = Stream()
-    assert s._xf is None
+    assert s._transform is None
 
 
 def test_unbound_stream_transform_chain() -> None:
@@ -46,7 +46,7 @@ def test_unbound_stream_transform_chain() -> None:
     pipeline = Stream().transform(Double()).map(lambda obs: obs.derive(data=obs.data + 1))
 
     # Should have a chain of transforms
-    assert pipeline._xf is not None
+    assert pipeline._transform is not None
     assert isinstance(pipeline._source, Stream)
 
 

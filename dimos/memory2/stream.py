@@ -67,12 +67,12 @@ class Stream(CompositeResource, Generic[T]):
         self,
         source: Backend[T] | Stream[Any] | None = None,
         *,
-        xf: Transformer[Any, T] | None = None,
+        transform: Transformer[Any, T] | None = None,
         query: StreamQuery = StreamQuery(),
     ) -> None:
         super().__init__()
         self._source = source
-        self._xf = xf
+        self._transform = transform
         self._query = query
 
     def stop(self) -> None:
@@ -92,7 +92,7 @@ class Stream(CompositeResource, Generic[T]):
         chain: list[tuple[Any, StreamQuery]] = []
         current: Any = self
         while isinstance(current, Stream):
-            chain.append((current._xf, current._query))
+            chain.append((current._transform, current._query))
             current = current._source
         chain.reverse()  # innermost first
 
@@ -121,9 +121,6 @@ class Stream(CompositeResource, Generic[T]):
         return False
 
     def __iter__(self) -> Iterator[Observation[T]]:
-        return self._build_iter()
-
-    def _build_iter(self) -> Iterator[Observation[T]]:
         if self._source is None:
             raise TypeError(
                 "Cannot iterate an unbound stream. Use .chain() to apply it to a real stream first."
@@ -135,8 +132,8 @@ class Stream(CompositeResource, Generic[T]):
 
     def _iter_transform(self) -> Iterator[Observation[T]]:
         """Iterate a transform source, applying query filters in Python."""
-        assert isinstance(self._source, Stream) and self._xf is not None
-        it: Iterator[Observation[T]] = self._xf(iter(self._source))
+        assert isinstance(self._source, Stream) and self._transform is not None
+        it: Iterator[Observation[T]] = self._transform(iter(self._source))
         return self._query.apply(it, live=self.is_live())
 
     def _replace_query(self, **overrides: Any) -> Stream[T]:
@@ -152,7 +149,7 @@ class Stream(CompositeResource, Generic[T]):
             search_k=overrides.get("search_k", q.search_k),
             search_text=overrides.get("search_text", q.search_text),
         )
-        return Stream(self._source, xf=self._xf, query=new_q)
+        return Stream(self._source, transform=self._transform, query=new_q)
 
     def _with_filter(self, f: Filter) -> Stream[T]:
         return self._replace_query(filters=(*self._query.filters, f))
@@ -225,7 +222,7 @@ class Stream(CompositeResource, Generic[T]):
         """
         if not isinstance(xf, Transformer):
             xf = FnIterTransformer(xf)
-        return Stream(source=self, xf=xf, query=StreamQuery())
+        return Stream(source=self, transform=xf, query=StreamQuery())
 
     def live(self, buffer: BackpressureBuffer[Observation[Any]] | None = None) -> Stream[T]:
         """Return a stream whose iteration never ends — backfill then live tail.
@@ -392,7 +389,7 @@ class Stream(CompositeResource, Generic[T]):
         current: Stream[Any] | None | Any = other
         found_root = False
         while isinstance(current, Stream):
-            ops.append((current._xf, current._query))
+            ops.append((current._transform, current._query))
             if current._source is None:
                 found_root = True
                 break
