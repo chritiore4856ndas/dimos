@@ -50,11 +50,6 @@ def make_stream(session) -> Callable[..., Stream[int]]:
     return f
 
 
-# ═══════════════════════════════════════════════════════════════════
-#  1. Basic iteration
-# ═══════════════════════════════════════════════════════════════════
-
-
 class TestBasicIteration:
     """Streams are lazy iterables — nothing runs until you iterate."""
 
@@ -83,11 +78,6 @@ class TestBasicIteration:
         first = [o.data for o in stream]
         second = [o.data for o in stream]
         assert first == second == [0, 10, 20]
-
-
-# ═══════════════════════════════════════════════════════════════════
-#  2. Temporal filters
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestTemporalFilters:
@@ -119,11 +109,6 @@ class TestTemporalFilters:
         assert [o.ts for o in result] == [3.0, 4.0, 5.0, 6.0]
 
 
-# ═══════════════════════════════════════════════════════════════════
-#  3. Spatial filter
-# ═══════════════════════════════════════════════════════════════════
-
-
 class TestSpatialFilter:
     """.near(pose, radius) filters by Euclidean distance."""
 
@@ -145,11 +130,6 @@ class TestSpatialFilter:
         assert [o.data for o in result] == ["has_pose"]
 
 
-# ═══════════════════════════════════════════════════════════════════
-#  4. Tags filter
-# ═══════════════════════════════════════════════════════════════════
-
-
 class TestTagsFilter:
     """.filter_tags() matches on observation metadata."""
 
@@ -169,11 +149,6 @@ class TestTagsFilter:
 
         result = stream.tags(x=1, y=2).fetch()
         assert [o.data for o in result] == ["a"]
-
-
-# ═══════════════════════════════════════════════════════════════════
-#  5. Ordering, limit, offset
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestOrderLimitOffset:
@@ -220,11 +195,6 @@ class TestOrderLimitOffset:
         assert make_stream(0).drain() == 0
 
 
-# ═══════════════════════════════════════════════════════════════════
-#  6. Functional API: .filter(), .map()
-# ═══════════════════════════════════════════════════════════════════
-
-
 class TestFunctionalAPI:
     """Functional combinators receive the full Observation."""
 
@@ -247,11 +217,6 @@ class TestFunctionalAPI:
         result = make_stream(3).map(lambda obs: obs.derive(data=str(obs.data))).fetch()
         assert [o.ts for o in result] == [0.0, 1.0, 2.0]
         assert [o.data for o in result] == ["0", "10", "20"]
-
-
-# ═══════════════════════════════════════════════════════════════════
-#  7. Transform chaining
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestTransformChaining:
@@ -352,11 +317,6 @@ class TestTransformChaining:
         assert len(calls) == 3
 
 
-# ═══════════════════════════════════════════════════════════════════
-#  8. Store
-# ═══════════════════════════════════════════════════════════════════
-
-
 class TestStore:
     """Store -> Stream hierarchy for named streams."""
 
@@ -383,11 +343,6 @@ class TestStore:
         memory_store.stream("temp")
         memory_store.delete_stream("temp")
         assert "temp" not in memory_store.list_streams()
-
-
-# ═══════════════════════════════════════════════════════════════════
-#  9. Lazy data loading
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestLazyData:
@@ -428,11 +383,6 @@ class TestLazyData:
         assert derived.pose == (1, 2, 3)
         assert derived.tags == {"k": "v"}
         assert derived.data == "transformed"
-
-
-# ═══════════════════════════════════════════════════════════════════
-#  10. Live mode
-# ═══════════════════════════════════════════════════════════════════
 
 
 class TestLiveMode:
