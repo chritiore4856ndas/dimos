@@ -12,24 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""DimSim agentic blueprint — spatial + agent + skills + human input."""
+"""DimSim agentic blueprint — spatial + MCP agent + skills + human input."""
 
-from dimos.agents.agent import agent
-from dimos.agents.skills.navigation import navigation_skill
-from dimos.agents.skills.person_follow import person_follow_skill
-from dimos.agents.skills.speak_skill import speak_skill
-from dimos.agents.web_human_input import web_input
+from dimos.agents.mcp.mcp_client import McpClient
+from dimos.agents.mcp.mcp_server import McpServer
+from dimos.agents.skills.navigation import NavigationSkillContainer
+from dimos.agents.skills.person_follow import PersonFollowSkillContainer
+from dimos.agents.skills.speak_skill import SpeakSkill
+from dimos.agents.web_human_input import WebInput
 from dimos.core.blueprints import autoconnect
 from dimos.robot.sim.blueprints.nav.sim_spatial import sim_spatial
 from dimos.robot.sim.tf_module import _camera_info_static
 
 sim_agentic = autoconnect(
     sim_spatial,
-    agent(),
-    navigation_skill(),
-    person_follow_skill(camera_info=_camera_info_static()),
-    web_input(),
-    speak_skill(),
+    McpServer.blueprint(),
+    McpClient.blueprint(),
+    NavigationSkillContainer.blueprint(),
+    PersonFollowSkillContainer.blueprint(camera_info=_camera_info_static()),
+    WebInput.blueprint(),
+    SpeakSkill.blueprint(),
 )
 
 __all__ = ["sim_agentic"]

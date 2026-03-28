@@ -15,12 +15,12 @@
 """DimSim spatial blueprint — nav + spatial memory."""
 
 from dimos.core.blueprints import autoconnect
-from dimos.perception.spatial_perception import spatial_memory
+from dimos.perception.spatial_perception import SpatialMemory
 from dimos.robot.sim.blueprints.nav.sim_nav import sim_nav
 
 sim_spatial = autoconnect(
     sim_nav,
-    spatial_memory(),
+    SpatialMemory.blueprint(),
 ).global_config(n_workers=8)
 
 __all__ = ["sim_spatial"]

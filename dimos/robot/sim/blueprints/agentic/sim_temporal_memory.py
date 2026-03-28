@@ -15,12 +15,12 @@
 """DimSim temporal memory blueprint — agentic + temporal memory."""
 
 from dimos.core.blueprints import autoconnect
-from dimos.perception.experimental.temporal_memory import temporal_memory
+from dimos.perception.experimental.temporal_memory.temporal_memory import TemporalMemory
 from dimos.robot.sim.blueprints.agentic.sim_agentic import sim_agentic
 
 sim_temporal_memory = autoconnect(
     sim_agentic,
-    temporal_memory(),
+    TemporalMemory.blueprint(),
 )
 
 __all__ = ["sim_temporal_memory"]

@@ -30,13 +30,15 @@ import os
 
 from dimos.core.blueprints import autoconnect
 from dimos.core.transport import JpegLcmTransport
-from dimos.mapping.costmapper import cost_mapper
-from dimos.mapping.voxels import voxel_mapper
+from dimos.mapping.costmapper import CostMapper
+from dimos.mapping.voxels import VoxelGridMapper
 from dimos.msgs.sensor_msgs import Image
-from dimos.navigation.frontier_exploration import wavefront_frontier_explorer
-from dimos.navigation.replanning_a_star.module import replanning_a_star_planner
-from dimos.perception.experimental.temporal_memory import temporal_memory
-from dimos.perception.spatial_perception import spatial_memory
+from dimos.navigation.frontier_exploration.wavefront_frontier_goal_selector import (
+    WavefrontFrontierExplorer,
+)
+from dimos.navigation.replanning_a_star.module import ReplanningAStarPlanner
+from dimos.perception.experimental.temporal_memory.temporal_memory import TemporalMemory
+from dimos.perception.spatial_perception import SpatialMemory
 from dimos.robot.sim.bridge import sim_bridge
 from dimos.robot.sim.tf_module import sim_tf
 from dimos.utils.data import DIMOS_PROJECT_ROOT
@@ -60,14 +62,14 @@ sim_parallel_eval = autoconnect(
     sim_bridge(),
     sim_tf(),
     # sim_nav
-    voxel_mapper(voxel_size=0.1),
-    cost_mapper(),
-    replanning_a_star_planner(),
-    wavefront_frontier_explorer(),
+    VoxelGridMapper.blueprint(voxel_size=0.1),
+    CostMapper.blueprint(),
+    ReplanningAStarPlanner.blueprint(),
+    WavefrontFrontierExplorer.blueprint(),
     # sim_spatial (isolated DB per instance)
-    spatial_memory(db_path=_db_path, visual_memory_path=_visual_memory_path, new_memory=True),
+    SpatialMemory.blueprint(db_path=_db_path, visual_memory_path=_visual_memory_path, new_memory=True),
     # temporal_memory
-    temporal_memory(),
+    TemporalMemory.blueprint(),
 ).global_config(n_workers=8, robot_model="dimsim")
 
 __all__ = ["sim_parallel_eval"]

@@ -39,7 +39,7 @@ from dimos.msgs.geometry_msgs import (
     Twist,
     Vector3,
 )
-from dimos.msgs.sensor_msgs import CameraInfo
+from dimos.msgs.sensor_msgs.CameraInfo import CameraInfo
 from dimos.utils.logging_config import setup_logger
 
 logger = setup_logger()

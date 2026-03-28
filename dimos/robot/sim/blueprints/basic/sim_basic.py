@@ -23,7 +23,7 @@ from dimos.msgs.sensor_msgs import Image
 from dimos.protocol.pubsub.impl.lcmpubsub import LCM
 from dimos.robot.sim.bridge import sim_bridge
 from dimos.robot.sim.tf_module import sim_tf
-from dimos.web.websocket_vis.websocket_vis_module import websocket_vis
+from dimos.web.websocket_vis.websocket_vis_module import WebsocketVisModule
 
 
 class _SimLCM(LCM):  # type: ignore[misc]
@@ -103,7 +103,7 @@ def _static_base_link(rr: Any) -> list[Any]:
 
 
 rerun_config = {
-    "pubsubs": [_SimLCM(autoconf=True)],
+    "pubsubs": [_SimLCM()],
     "visual_override": {
         "world/camera_info": _convert_camera_info,
         "world/color_image": _convert_color_image,
@@ -116,30 +116,28 @@ rerun_config = {
     },
 }
 
-match global_config.viewer:
-    case "foxglove":
-        from dimos.robot.foxglove_bridge import foxglove_bridge
+if global_config.viewer == "foxglove":
+    from dimos.robot.foxglove_bridge import FoxgloveBridge
 
-        with_vis = autoconnect(
-            _transports_base,
-            foxglove_bridge(shm_channels=["/color_image#sensor_msgs.Image"]),
-        )
-    case "rerun":
-        from dimos.visualization.rerun.bridge import rerun_bridge
+    with_vis = autoconnect(
+        _transports_base,
+        FoxgloveBridge.blueprint(shm_channels=["/color_image#sensor_msgs.Image"]),
+    )
+elif global_config.viewer.startswith("rerun"):
+    from dimos.visualization.rerun.bridge import RerunBridgeModule, _resolve_viewer_mode
 
-        with_vis = autoconnect(_transports_base, rerun_bridge(**rerun_config))
-    case "rerun-web":
-        from dimos.visualization.rerun.bridge import rerun_bridge
-
-        with_vis = autoconnect(_transports_base, rerun_bridge(viewer_mode="web", **rerun_config))
-    case _:
-        with_vis = _transports_base
+    with_vis = autoconnect(
+        _transports_base,
+        RerunBridgeModule.blueprint(viewer_mode=_resolve_viewer_mode(), **rerun_config),
+    )
+else:
+    with_vis = _transports_base
 
 sim_basic = autoconnect(
     with_vis,
     sim_bridge(),
     sim_tf(),
-    websocket_vis(),
+    WebsocketVisModule.blueprint(),
 ).global_config(n_workers=4, robot_model="dimsim")
 
 __all__ = ["sim_basic"]

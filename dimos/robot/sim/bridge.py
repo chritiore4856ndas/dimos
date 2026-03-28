@@ -36,9 +36,9 @@ from pathlib import Path
 import shutil
 from typing import TYPE_CHECKING
 
-from dimos import spec
 from dimos.core.core import rpc
 from dimos.core.native_module import NativeModule, NativeModuleConfig
+from dimos.spec.perception import Camera, Pointcloud
 from dimos.utils.logging_config import setup_logger
 
 if TYPE_CHECKING:
@@ -89,7 +89,7 @@ class DimSimBridgeConfig(NativeModuleConfig):
     extra_args: list[str] = field(default_factory=list)
 
 
-class DimSimBridge(NativeModule, spec.Camera, spec.Pointcloud):
+class DimSimBridge(NativeModule, Camera, Pointcloud):
     """NativeModule that manages the DimSim bridge subprocess.
 
     The bridge (Deno process) handles Browser-LCM translation and publishes

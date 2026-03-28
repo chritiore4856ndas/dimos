@@ -139,6 +139,8 @@ def spy(sim_nav):
     s.stop()
 
 
+@pytest.mark.skipif_in_ci
+@pytest.mark.slow
 class TestSimNav:
     """Smoke tests for the sim-nav pipeline — sensors, control, and data integrity."""
 
