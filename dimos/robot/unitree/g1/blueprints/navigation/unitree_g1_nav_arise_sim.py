@@ -55,7 +55,7 @@ from dimos.navigation.smartnav.modules.local_planner.local_planner import LocalP
 from dimos.navigation.smartnav.modules.path_follower.path_follower import PathFollower
 from dimos.navigation.smartnav.modules.terrain_analysis.terrain_analysis import TerrainAnalysis
 from dimos.navigation.smartnav.modules.terrain_map_ext.terrain_map_ext import TerrainMapExt
-from dimos.navigation.smartnav.modules.unity_bridge.unity_bridge import UnityBridgeModule
+from dimos.simulation.unity.module import UnityBridgeModule
 from dimos.protocol.pubsub.impl.lcmpubsub import LCM
 from dimos.visualization.vis_module import vis_module
 

@@ -35,7 +35,7 @@ from dimos.navigation.smartnav.modules.sensor_scan_generation.sensor_scan_genera
     SensorScanGeneration,
 )
 from dimos.navigation.smartnav.modules.tui_control.tui_control import TUIControlModule
-from dimos.navigation.smartnav.modules.unity_bridge.unity_bridge import UnityBridgeModule
+from dimos.simulation.unity.module import UnityBridgeModule
 
 
 class TestModulePickling:
@@ -191,7 +191,7 @@ class TestPortTypeCompatibility:
         from dimos.navigation.smartnav.modules.terrain_analysis.terrain_analysis import (
             TerrainAnalysis,
         )
-        from dimos.navigation.smartnav.modules.unity_bridge.unity_bridge import UnityBridgeModule
+        from dimos.simulation.unity.module import UnityBridgeModule
 
         def get_streams(cls):
             hints = get_type_hints(cls)
