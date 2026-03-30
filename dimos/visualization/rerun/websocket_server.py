@@ -91,9 +91,7 @@ class RerunWebSocketServer(Module[Config]):
         )
         self._server_thread.start()
         self._server_ready.wait(timeout=self.config.start_timeout)
-        logger.info(
-            f"RerunWebSocketServer listening on ws://{self.config.host}:{self.config.port}/ws"
-        )
+        self._log_connect_hints()
 
     @rpc
     def stop(self) -> None:
@@ -107,6 +105,33 @@ class RerunWebSocketServer(Module[Config]):
         ):
             self._ws_loop.call_soon_threadsafe(self._stop_event.set)
         super().stop()
+
+    def _log_connect_hints(self) -> None:
+        """Log the WebSocket URL(s) that viewers should connect to."""
+        import socket
+
+        from dimos.utils.generic import get_local_ips
+
+        local_ips = get_local_ips()
+        hostname = socket.gethostname()
+        ws_url = f"ws://127.0.0.1:{self.config.port}/ws"
+
+        lines = [
+            "",
+            "=" * 60,
+            f"RerunWebSocketServer listening on {ws_url}",
+            "",
+        ]
+        if local_ips:
+            lines.append("From another machine on the network:")
+            for ip, iface in local_ips:
+                lines.append(f"  ws://{ip}:{self.config.port}/ws  # {iface}")
+            lines.append("")
+        lines.append(f"  hostname: {hostname}")
+        lines.append("=" * 60)
+        lines.append("")
+
+        logger.info("\n".join(lines))
 
     def _run_server(self) -> None:
         """Entry point for the background server thread."""
