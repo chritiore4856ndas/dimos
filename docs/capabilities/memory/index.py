@@ -23,8 +23,9 @@ from dimos.mapping.pointclouds.occupancy import (
     general_occupancy,
 )
 from dimos.memory2.store.sqlite import SqliteStore
-from dimos.memory2.transform import smooth
-from dimos.memory2.vis.drawing import Drawing
+from dimos.memory2.transform import smooth, speed
+from dimos.memory2.vis.drawing2d.drawing2d import Drawing2D
+from dimos.memory2.vis.graph.graph import GraphTime
 from dimos.memory2.vis.type import Color, Point
 from dimos.models.embedding.clip import CLIPModel
 from dimos.utils.data import get_data
@@ -58,7 +59,7 @@ store = SqliteStore(path=get_data("go2_bigoffice.db"))
 global_map = pickle.loads(get_data("unitree_go2_bigoffice_map.pickle").read_bytes())
 
 costmap = simple_inflate(general_occupancy(global_map), 0.05)
-drawing = Drawing()
+drawing = Drawing2D()
 drawing.add(costmap)
 
 # store.streams.color_image.tap(
@@ -88,26 +89,39 @@ embedded = store.streams.color_image_embedded
 search_text = "bottle"
 text_vector = clip.embed_text(search_text)
 
-embedded.search(text_vector).order_by("ts").map(
-    lambda obs: obs.derive(data=obs.similarity)
-).transform(smooth(10)).tap(
+similarity_stream = (
+    embedded.search(text_vector)
+    .order_by("ts")
+    .map(lambda obs: obs.derive(data=obs.similarity))
+    .transform(smooth(10))
+)
+
+similarity_stream.tap(
     lambda obs: drawing.add(
         Point(obs.pose_stamped, color=Color("similarity", obs.data, cmap="turbo"), radius=0.025)
     )
 ).drain()
 
-
-# vlm = MoondreamVlModel()
-
-# plot_mosaic(
-#     embedded.search(text_vector, k=16)
-#     .map(lambda obs: vlm.query_detections(obs.data, search_text))
-#     .tap(print)
-#     .map(lambda detection: detection.annotated_image())
-#     .to_list(),
-#     "assets/images.png",
-#     cols=4,
-# )
-
-
 drawing.to_svg("assets/imageposes.svg")
+
+graph = GraphTime()
+graph.add(similarity_stream, label=f'similarity to "{search_text}"', color="#e74c3c")
+graph.to_svg("assets/similarity_time.svg")
+
+speed_graph = GraphTime()
+speed_graph.add(
+    store.streams.color_image.transform(speed()).transform(smooth(20)),
+    label="speed (m/s)",
+    color="#3498db",
+)
+speed_graph.to_svg("assets/speed_time.svg")
+
+brightness_graph = GraphTime()
+brightness_graph.add(
+    store.streams.color_image.map(lambda obs: obs.derive(data=obs.data.brightness)).transform(
+        smooth(10)
+    ),
+    label="brightness",
+    color="#f1c40f",
+)
+brightness_graph.to_svg("assets/brightness_time.svg")

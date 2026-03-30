@@ -154,7 +154,7 @@ class Text:
     color: str | Color = "#333333"
 
 
-# Union of all types that can appear in a Drawing
+# Union of all types that can appear in a Drawing2D
 SceneElement = Union[
     Pose,
     Arrow,
@@ -165,3 +165,41 @@ SceneElement = Union[
     Text,
     "OccupancyGrid",  # pass-through, rendered as base map raster
 ]
+
+
+# --- GraphTime element types ---
+
+
+@dataclass
+class Series:
+    """Line connecting (t, y) points."""
+
+    ts: list[float]
+    values: list[float]
+    color: str | Color = "#3498db"
+    width: float = 1.5
+    label: str | None = None
+
+
+@dataclass
+class Markers:
+    """Scatter dots at (t, y) points."""
+
+    ts: list[float]
+    values: list[float]
+    color: str | Color = "#e74c3c"
+    radius: float = 3.0
+    label: str | None = None
+
+
+@dataclass
+class HLine:
+    """Horizontal reference line."""
+
+    y: float
+    color: str = "#888888"
+    style: str = "dashed"
+    label: str | None = None
+
+
+GraphElement = Union[Series, Markers, HLine]

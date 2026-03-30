@@ -50,4 +50,10 @@ Result:
 
 
 
+![output](assets/similarity_time.svg)
+
+![output](assets/speed_time.svg)
+
+![output](assets/brightness_time.svg)
+
 ![output](assets/images.png)

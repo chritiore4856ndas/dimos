@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""SVG renderer for memory2 Drawing.
+"""SVG renderer for Drawing2D.
 
 Top-down XY projection (Z ignored). World Y-up → SVG Y-down.
 """
@@ -42,7 +42,7 @@ from dimos.memory2.vis.type import (
 from dimos.msgs.nav_msgs.OccupancyGrid import OccupancyGrid
 
 if TYPE_CHECKING:
-    from dimos.memory2.vis.drawing import Drawing
+    from dimos.memory2.vis.drawing2d.drawing2d import Drawing2D
 
 
 @dataclass
@@ -270,12 +270,12 @@ _ARROWHEAD_MARKER = (
 
 
 def render(
-    drawing: Drawing,
+    drawing: Drawing2D,
     path: str | Path | None = None,
     width_px: float = 800,
     padding: float = 0.5,
 ) -> str:
-    """Render a Drawing to an SVG string, optionally writing to *path*."""
+    """Render a Drawing2D to an SVG string, optionally writing to *path*."""
     elements = drawing.elements
     vt = ViewTransform.from_elements(elements, width_px=width_px, padding=padding)
 

@@ -18,7 +18,8 @@ import numpy as np
 import pytest
 
 from dimos.memory2.type.observation import EmbeddedObservation, Observation
-from dimos.memory2.vis.drawing import Drawing, color
+from dimos.memory2.vis.color import color, resolve_colors
+from dimos.memory2.vis.drawing2d.drawing2d import Drawing2D as Drawing
 from dimos.memory2.vis.type import Arrow, Box3D, Camera, Color, Point, Polyline, Pose, Text
 from dimos.msgs.geometry_msgs.Point import Point as GeoPoint
 from dimos.msgs.geometry_msgs.PoseStamped import PoseStamped
@@ -223,7 +224,7 @@ class TestDrawingObservations:
         for obs in results:
             d.add(obs)
 
-        d._resolve_colors()
+        resolve_colors(d._elements)
 
         for el in d.elements:
             assert isinstance(el, Arrow)
@@ -256,7 +257,7 @@ class TestColor:
         for v in [0.80, 0.95]:
             d.add(Point(GeoPoint(0, v, 0), color=Color("sim", v, cmap="RdYlBu_r")))
 
-        d._resolve_colors()
+        resolve_colors(d._elements)
 
         # Speed endpoints map to cmap(0.0) and cmap(1.0)
         assert d.elements[0].color == color(1.0, 1.0, 5.0, "turbo")
@@ -269,7 +270,7 @@ class TestColor:
         d = Drawing()
         d.add(Point(GeoPoint(0, 0, 0), color="green"))
         d.add(Point(GeoPoint(1, 0, 0), color=Color("x", 1.0)))
-        d._resolve_colors()
+        resolve_colors(d._elements)
         assert d.elements[0].color == "green"
 
 
@@ -294,7 +295,7 @@ class TestDrawingConvenience:
 
 class TestDrawingRepr:
     def test_repr_empty(self):
-        assert repr(Drawing()) == "Drawing()"
+        assert repr(Drawing()) == "Drawing2D()"
 
     def test_repr_with_elements(self):
         d = Drawing()
@@ -302,7 +303,7 @@ class TestDrawingRepr:
         d.add(Pose(ps))
         d.add(Pose(ps))
         d.add(Arrow(ps))
-        assert repr(d) == "Drawing(Arrow=1, Pose=2)"
+        assert repr(d) == "Drawing2D(Arrow=1, Pose=2)"
 
 
 class TestSVGRender:

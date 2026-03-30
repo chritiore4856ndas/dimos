@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Drawing builder for memory2 visualization.
+"""Drawing2D builder for memory2 visualization.
 
-Drawing.add() is a smart dispatcher: it accepts vis types directly (explicit
+Drawing2D.add() is a smart dispatcher: it accepts vis types directly (explicit
 rendering mode), raw dimos msgs (auto-wrapped into default vis type), or
 observations (smart dispatch based on data type).
 """
@@ -24,6 +24,7 @@ from __future__ import annotations
 from typing import Any
 
 from dimos.memory2.type.observation import EmbeddedObservation, Observation
+from dimos.memory2.vis.color import resolve_colors
 from dimos.memory2.vis.type import (
     Arrow,
     Box3D,
@@ -44,36 +45,21 @@ from dimos.msgs.protocol import DimosMsg
 from dimos.msgs.vision_msgs.Detection3D import Detection3D
 
 
-def color(value: float, lo: float = 0.0, hi: float = 1.0, cmap: str = "turbo") -> str:
-    """Map a value in [lo, hi] to a hex color string via a matplotlib colormap."""
-    import functools
-
-    import matplotlib.pyplot as plt
-
-    @functools.lru_cache(maxsize=16)
-    def _cmap(name: str):  # type: ignore[no-untyped-def]
-        return plt.get_cmap(name)
-
-    t = max(0.0, min(1.0, (value - lo) / (hi - lo))) if hi != lo else 0.5
-    r, g, b, _ = _cmap(cmap)(t)
-    return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
-
-
-class Drawing:
-    """Accumulates scene elements for visualization.
+class Drawing2D:
+    """Accumulates scene elements for spatial 2D visualization.
 
     Elements can be added as:
     - Vis types directly: ``d.add(Pose(posestamped, color="red"))``
     - Raw dimos msgs with style kwargs: ``d.add(posestamped, color="red")``
     - Observations (smart dispatch): ``d.add(observation)``
     - Lists of EmbeddedObservations: ``d.add(results)`` → similarity heatmap
-    - Streams: ``d.add(stream)`` → materializes and adds each obs.data
+    - Streams / iterables: ``d.add(stream)`` → materializes and adds each obs.data
     """
 
     def __init__(self) -> None:
         self._elements: list[SceneElement] = []
 
-    def add(self, element: Any, **kwargs: Any) -> Drawing:
+    def add(self, element: Any, **kwargs: Any) -> Drawing2D:
         """Add a scene element with smart dispatch.
 
         Vis types (Pose, Arrow, Point, etc.) are stored as-is.
@@ -94,7 +80,7 @@ class Drawing:
                 self.add(item, **kwargs)
         else:
             raise TypeError(
-                f"Drawing.add() does not know how to handle {type(element).__name__}. "
+                f"Drawing2D.add() does not know how to handle {type(element).__name__}. "
                 f"Pass a vis type (Pose, Arrow, Point, ...) or a dimos msg."
             )
 
@@ -152,34 +138,15 @@ class Drawing:
         else:
             self._elements.append(Pose(msg=obs.pose_stamped, **kwargs))
 
-    def base_map(self, grid: OccupancyGrid) -> Drawing:
+    def base_map(self, grid: OccupancyGrid) -> Drawing2D:
         """Add an OccupancyGrid as the background map."""
         return self.add(grid)
 
-    def _resolve_colors(self) -> None:
-        """Resolve all Color objects to hex strings using per-group auto-ranging."""
-        groups: dict[str, list[float]] = {}
-        for el in self._elements:
-            c = getattr(el, "color", None)
-            if isinstance(c, Color) and c.value is not None:
-                groups.setdefault(c.group, []).append(c.value)
-
-        if not groups:
-            return
-
-        ranges = {g: (min(vs), max(vs)) for g, vs in groups.items()}
-
-        for el in self._elements:
-            c = getattr(el, "color", None)
-            if isinstance(c, Color) and c.value is not None:
-                lo, hi = ranges[c.group]
-                el.color = color(c.value, lo, hi, c.cmap)
-
     def to_svg(self, path: str | None = None) -> str:
         """Render to SVG string. Optionally write to file."""
-        from dimos.memory2.vis.svg import render
+        from dimos.memory2.vis.drawing2d.svg import render
 
-        self._resolve_colors()
+        resolve_colors(self._elements)
         svg = render(self)
         if path is not None:
             with open(path, "w") as f:
@@ -204,4 +171,8 @@ class Drawing:
             name = type(el).__name__
             counts[name] = counts.get(name, 0) + 1
         parts = [f"{n}={c}" for n, c in sorted(counts.items())]
-        return f"Drawing({', '.join(parts)})"
+        return f"Drawing2D({', '.join(parts)})"
+
+
+# Backwards compatibility alias
+Drawing = Drawing2D
