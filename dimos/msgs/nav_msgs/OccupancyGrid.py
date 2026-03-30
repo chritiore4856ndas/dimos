@@ -483,10 +483,9 @@ class OccupancyGrid(Timestamped):
                 vis[occupied_mask, :3] = blended.astype(np.uint8)
                 vis[occupied_mask, 3] = 255
 
-            # Unknown cells: always black
+            # Unknown cells: transparent
             unknown_mask = self.grid == -1
-            vis[unknown_mask, :3] = 0
-            vis[unknown_mask, 3] = 255
+            vis[unknown_mask] = 0
 
             # Apply cost_range filter - set out-of-range cells to background
             if in_range_mask is not None:
@@ -517,10 +516,9 @@ class OccupancyGrid(Timestamped):
             vis[occupied_mask, :3] = blended_occ.astype(np.uint8)
             vis[occupied_mask, 3] = 255
 
-        # Unknown cells: always black
+        # Unknown cells: transparent
         unknown_mask = self.grid == -1
-        vis[unknown_mask, :3] = 0
-        vis[unknown_mask, 3] = 255
+        vis[unknown_mask] = 0
 
         # Apply cost_range filter - set out-of-range cells to background
         if in_range_mask is not None:
