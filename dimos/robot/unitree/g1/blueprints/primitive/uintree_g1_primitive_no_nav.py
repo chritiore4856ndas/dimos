@@ -22,7 +22,7 @@ from dimos_lcm.sensor_msgs import CameraInfo
 from dimos.core.blueprints import autoconnect
 from dimos.core.global_config import global_config
 from dimos.core.transport import LCMTransport
-from dimos.hardware.sensors.camera.module import camera_module  # type: ignore[attr-defined]
+from dimos.hardware.sensors.camera.module import CameraModule  # type: ignore[attr-defined]
 from dimos.hardware.sensors.camera.webcam import Webcam
 from dimos.hardware.sensors.camera.zed import compat as zed
 from dimos.mapping.costmapper import CostMapper
@@ -40,7 +40,8 @@ from dimos.msgs.std_msgs.Bool import Bool
 from dimos.navigation.frontier_exploration.wavefront_frontier_goal_selector import (
     WavefrontFrontierExplorer,
 )
-from dimos.visualization.vis_module import vis_module
+from dimos.protocol.pubsub.impl.lcmpubsub import LCM
+from dimos.web.websocket_vis.websocket_vis_module import WebsocketVisModule
 
 
 def _convert_camera_info(camera_info: Any) -> Any:
@@ -97,6 +98,7 @@ def _g1_rerun_blueprint() -> Any:
 
 rerun_config = {
     "blueprint": _g1_rerun_blueprint,
+    "pubsubs": [LCM()],
     "visual_override": {
         "world/camera_info": _convert_camera_info,
         "world/global_map": _convert_global_map,
@@ -107,7 +109,18 @@ rerun_config = {
     },
 }
 
-_with_vis = vis_module(global_config.viewer, rerun_config=rerun_config)
+if global_config.viewer == "foxglove":
+    from dimos.robot.foxglove_bridge import FoxgloveBridge
+
+    _with_vis = autoconnect(FoxgloveBridge.blueprint())
+elif global_config.viewer.startswith("rerun"):
+    from dimos.visualization.rerun.bridge import RerunBridgeModule, _resolve_viewer_mode
+
+    _with_vis = autoconnect(
+        RerunBridgeModule.blueprint(viewer_mode=_resolve_viewer_mode(), **rerun_config)
+    )
+else:
+    _with_vis = autoconnect()
 
 
 def _create_webcam() -> Webcam:
@@ -121,7 +134,7 @@ def _create_webcam() -> Webcam:
 
 _camera = (
     autoconnect(
-        camera_module(
+        CameraModule.blueprint(
             transform=Transform(
                 translation=Vector3(0.05, 0.0, 0.6),  # height of camera on G1 robot
                 rotation=Quaternion.from_euler(Vector3(0.0, 0.2, 0.0)),
@@ -142,6 +155,8 @@ uintree_g1_primitive_no_nav = (
         VoxelGridMapper.blueprint(voxel_size=0.1),
         CostMapper.blueprint(),
         WavefrontFrontierExplorer.blueprint(),
+        # Visualization
+        WebsocketVisModule.blueprint(),
     )
     .global_config(n_workers=4, robot_model="unitree_g1")
     .transports(

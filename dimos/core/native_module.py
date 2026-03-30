@@ -40,6 +40,7 @@ Example usage::
 
 from __future__ import annotations
 
+import collections
 import enum
 import inspect
 import json
@@ -114,9 +115,6 @@ class NativeModuleConfig(ModuleConfig):
 
 _NativeConfig = TypeVar("_NativeConfig", bound=NativeModuleConfig, default=NativeModuleConfig)
 
-# How many recent stderr/stdout lines to keep for crash diagnostics.
-_TAIL_LINES = 50
-
 
 class NativeModule(Module[_NativeConfig]):
     """Module that wraps a native executable as a managed subprocess.
@@ -148,8 +146,8 @@ class NativeModule(Module[_NativeConfig]):
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self._stderr_tail = []
-        self._stdout_tail = []
+        self._stderr_tail: collections.deque[str] = collections.deque(maxlen=50)
+        self._stdout_tail: collections.deque[str] = collections.deque(maxlen=50)
         self._tail_lock = threading.Lock()
         self._resolve_paths()
 
@@ -329,8 +327,6 @@ class NativeModule(Module[_NativeConfig]):
             # Keep a rolling tail buffer for crash diagnostics.
             with self._tail_lock:
                 tail_buf.append(line)
-                if len(tail_buf) > _TAIL_LINES:
-                    tail_buf.pop(0)
 
             if self.config.log_format == LogFormat.JSON:
                 try:
