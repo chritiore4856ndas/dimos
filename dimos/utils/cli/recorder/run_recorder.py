@@ -222,11 +222,11 @@ class RecorderApp(App[None]):
         yield Footer()
 
     def on_mount(self) -> None:
-        from dimos.protocol.pubsub.impl.lcmpubsub import LCM
+        from dimos.protocol.pubsub.impl.lcmpubsub import LCMPubSubBase
         from dimos.record import RecordReplay
         from dimos.utils.cli.lcmspy.lcmspy import GraphLCMSpy
 
-        self._lcm = LCM()
+        self._lcm = LCMPubSubBase()
 
         # Live topic discovery via LCM spy (same as lcmspy tool)
         self._spy = GraphLCMSpy(graph_log_window=0.5)
@@ -354,7 +354,7 @@ class RecorderApp(App[None]):
             return
         if hasattr(self._lcm, "start"):
             self._lcm.start()
-        self._recorder.play(pubsub=self._lcm, speed=1.0)
+        self._recorder.play(speed=1.0)
 
     async def _seek_relative(self, delta: float) -> None:
         if self._recorder:
