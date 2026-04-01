@@ -129,7 +129,7 @@ _forkserver_ctx: Any = None
 def get_forkserver_context() -> Any:
     global _forkserver_ctx
     if _forkserver_ctx is None:
-        _forkserver_ctx = multiprocessing.get_context("forkserver")
+        _forkserver_ctx = multiprocessing.get_context("forkserver") # NOTE changing this to "spawn" makes mps work on macos
     return _forkserver_ctx
 
 
