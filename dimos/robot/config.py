@@ -56,9 +56,9 @@ class RobotConfig(BaseModel):
     end_effector_link: str | None = None
 
     # Physical dimensions (meters)
-    height_clearance: float | None = None # max height
-    width_clearance: float | None = None # max width
-    
+    height_clearance: float | None = None  # max height
+    width_clearance: float | None = None  # max width
+
     # These offsets are applied so that odometry  at 0,0,0 corresponds roughly with the floor
     # Note: these cannot (easily) be calculated from the URDF because
     #       the URDF doesn't always have an initial robot pose/stance so the

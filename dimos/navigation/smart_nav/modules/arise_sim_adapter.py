@@ -46,7 +46,7 @@ class AriseSimAdapterConfig(ModuleConfig):
 
 class AriseSimAdapter(Module[AriseSimAdapterConfig]):
     """Adapts sim data (world-frame scans + odom) → AriseSLAM inputs (body-frame + IMU).
-    
+
     NOTE: using this is basically doing "1+1-1", its useful for sim or robots that do not provide raw-scans
           but beyond those two edgecases THIS MODULE SHOULD NOT BE USED
     Ports:

@@ -293,9 +293,7 @@ sim = [
 ]
 
 navigation = [
-    # PGO (pose graph optimization) — gtsam-develop has aarch64 wheels; stable gtsam 4.2 does not
-    "gtsam>=4.2; platform_machine != 'aarch64'",
-    "gtsam-develop; platform_machine == 'aarch64'",
+    "gtsam-extended>=4.3a1.post1",
 ]
 
 # NOTE: jetson-jp6-cuda126 extra is disabled due to 404 errors from wheel URLs
@@ -343,8 +341,6 @@ base = [
 ]
 
 [tool.uv]
-# gtsam-develop incorrectly declares pytest as a runtime dependency (packaging bug).
-# Override it to keep our pinned version.
 override-dependencies = ["pytest==8.3.5"]
 
 [tool.ruff]
