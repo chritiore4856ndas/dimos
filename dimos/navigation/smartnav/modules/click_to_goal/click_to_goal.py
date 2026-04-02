@@ -27,6 +27,8 @@ import threading
 import time
 from typing import Any
 
+from dimos_lcm.std_msgs import Bool  # type: ignore[import-untyped]
+
 from dimos.core.module import Module, ModuleConfig
 from dimos.core.stream import In, Out
 from dimos.msgs.geometry_msgs.PointStamped import PointStamped
@@ -41,6 +43,7 @@ class ClickToGoal(Module[ModuleConfig]):
     Ports:
         clicked_point (In[PointStamped]): Click from viewer.
         odometry (In[Odometry]): Vehicle pose for goal line rendering.
+        stop_movement (In[Bool]): Cancel active goal by setting goal to current position.
         way_point (Out[PointStamped]): Navigation waypoint for LocalPlanner.
         goal (Out[PointStamped]): Navigation goal for FarPlanner.
         goal_path (Out[Path]): Straight line from robot to goal for Rerun.
@@ -50,6 +53,7 @@ class ClickToGoal(Module[ModuleConfig]):
 
     clicked_point: In[PointStamped]
     odometry: In[Odometry]
+    stop_movement: In[Bool]
     way_point: Out[PointStamped]
     goal: Out[PointStamped]
     goal_path: Out[Path]
@@ -73,6 +77,7 @@ class ClickToGoal(Module[ModuleConfig]):
     def start(self) -> None:
         self.odometry._transport.subscribe(self._on_odom)
         self.clicked_point._transport.subscribe(self._on_click)
+        self.stop_movement._transport.subscribe(self._on_stop_movement)
 
     def _on_odom(self, msg: Odometry) -> None:
         with self._lock:
@@ -112,3 +117,15 @@ class ClickToGoal(Module[ModuleConfig]):
             ),
         ]
         self.goal_path._transport.publish(Path(ts=now, frame_id="map", poses=poses))
+
+    def _on_stop_movement(self, msg: Bool) -> None:
+        """Cancel navigation by setting the goal to the robot's current position."""
+        if not msg.data:
+            return
+
+        with self._lock:
+            rx, ry, rz = self._robot_x, self._robot_y, self._robot_z
+
+        here = PointStamped(ts=time.time(), frame_id="map", x=rx, y=ry, z=rz)
+        self.way_point._transport.publish(here)
+        self.goal._transport.publish(here)

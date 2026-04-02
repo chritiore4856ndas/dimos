@@ -67,13 +67,14 @@ class RerunWebSocketServer(Module[Config]):
     Outputs:
         clicked_point: 3-D world-space point from the most recent viewer click.
         tele_cmd_vel: Twist velocity commands from keyboard teleop, including stop events.
+        stop_movement: Published when teleop starts — signals nav to cancel the active goal.
     """
 
     default_config = Config
 
     clicked_point: Out[PointStamped]
     tele_cmd_vel: Out[Twist]
-    stop_explore_cmd: Out[Bool]
+    stop_movement: Out[Bool]
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -215,7 +216,7 @@ class RerunWebSocketServer(Module[Config]):
             )
             logger.debug(f"RerunWebSocketServer: twist → {twist}")
             if not self._teleop_clients:
-                self.stop_explore_cmd.publish(Bool(data=True))
+                self.stop_movement.publish(Bool(data=True))
             self._teleop_clients.add(client_id)
             self.tele_cmd_vel.publish(twist)
 
