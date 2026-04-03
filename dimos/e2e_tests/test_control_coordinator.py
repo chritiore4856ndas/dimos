@@ -203,7 +203,7 @@ class TestControlCoordinatorE2E:
         lcm_spy.save_topic("/coordinator/joint_state#sensor_msgs.JointState")
 
         # Start dual-arm mock coordinator
-        start_blueprint("coordinator-dual-mock")
+        start_blueprint("coordinator-dual-mock", simulation=False)
         lcm_spy.wait_for_saved_topic("/coordinator/joint_state#sensor_msgs.JointState")
 
         client = RPCClient(None, ControlCoordinator)
