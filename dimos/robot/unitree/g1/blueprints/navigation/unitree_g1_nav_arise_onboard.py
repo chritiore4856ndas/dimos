@@ -35,11 +35,11 @@ import os
 
 from dimos.core.blueprints import autoconnect
 from dimos.hardware.sensors.lidar.livox.module import Mid360
+from dimos.navigation.smart_nav.main import smart_nav, smart_nav_rerun_config
 from dimos.navigation.smart_nav.modules.arise_slam.arise_slam import AriseSLAM
 from dimos.navigation.smart_nav.modules.sensor_scan_generation.sensor_scan_generation import (
     SensorScanGeneration,
 )
-from dimos.robot.unitree.g1.blueprints.navigation._smart_nav import _rerun_config, _smart_nav
 from dimos.robot.unitree.g1.config import G1
 from dimos.robot.unitree.g1.effectors.high_level.dds_sdk import G1HighLevelDdsSdk
 from dimos.visualization.rerun.bridge import RerunBridgeModule
@@ -57,9 +57,9 @@ unitree_g1_nav_arise_onboard = (
             max_range=50.0,
         ),
         SensorScanGeneration.blueprint(),
-        _smart_nav,
+        smart_nav(vehicle_height=G1.height_clearance),
         G1HighLevelDdsSdk.blueprint(),
-        RerunBridgeModule.blueprint(**_rerun_config),
+        RerunBridgeModule.blueprint(**smart_nav_rerun_config()),
     )
     .remappings(
         [

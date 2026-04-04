@@ -26,21 +26,10 @@ from typing import Any
 
 from dimos.core.blueprints import autoconnect
 from dimos.core.global_config import global_config
-from dimos.navigation.smart_nav.blueprints._rerun_helpers import (
-    goal_path_override,
-    path_override,
-    sensor_scan_override,
-    static_floor,
-    static_robot,
-    terrain_map_ext_override,
-    terrain_map_override,
-    waypoint_override,
-)
+from dimos.navigation.smart_nav.main import smart_nav, smart_nav_rerun_config
 from dimos.navigation.smart_nav.modules.sensor_scan_generation.sensor_scan_generation import (
     SensorScanGeneration,
 )
-from dimos.protocol.pubsub.impl.lcmpubsub import LCM
-from dimos.robot.unitree.g1.blueprints.navigation._smart_nav import _smart_nav_sim
 from dimos.simulation.unity.module import UnityBridgeModule
 from dimos.visualization.vis_module import vis_module
 
@@ -57,29 +46,6 @@ def _rerun_blueprint() -> Any:
     )
 
 
-_vis = vis_module(
-    viewer_backend=global_config.viewer,
-    rerun_config={
-        "blueprint": _rerun_blueprint,
-        "pubsubs": [LCM()],
-        "min_interval_sec": 0.25,
-        "visual_override": {
-            "world/camera_info": UnityBridgeModule.rerun_suppress_camera_info,
-            "world/sensor_scan": sensor_scan_override,
-            "world/terrain_map": terrain_map_override,
-            "world/terrain_map_ext": terrain_map_ext_override,
-            "world/path": path_override,
-            "world/way_point": waypoint_override,
-            "world/goal_path": goal_path_override,
-        },
-        "static": {
-            "world/color_image": UnityBridgeModule.rerun_static_pinhole,
-            "world/floor": static_floor,
-            "world/tf/robot": static_robot,
-        },
-    },
-)
-
 unitree_g1_nav_basic_sim = (
     autoconnect(
         UnityBridgeModule.blueprint(
@@ -88,8 +54,50 @@ unitree_g1_nav_basic_sim = (
             vehicle_height=1.24,
         ),
         SensorScanGeneration.blueprint(),
-        _smart_nav_sim,
-        _vis,
+        smart_nav(
+            terrain_analysis={
+                "obstacle_height_threshold": 0.1,
+                "ground_height_threshold": 0.05,
+                "max_relative_z": 0.3,
+                "min_relative_z": -1.5,
+            },
+            local_planner={
+                "max_speed": 2.0,
+                "autonomy_speed": 2.0,
+                "obstacle_height_threshold": 0.1,
+                "max_relative_z": 0.3,
+                "min_relative_z": -1.5,
+                "freeze_ang": 180.0,
+                "two_way_drive": False,
+            },
+            path_follower={
+                "max_speed": 2.0,
+                "autonomy_speed": 2.0,
+                "max_acceleration": 4.0,
+                "slow_down_distance_threshold": 0.5,
+                "omni_dir_goal_threshold": 0.5,
+                "two_way_drive": False,
+            },
+            far_planner={
+                "sensor_range": 15.0,
+                "is_static_env": True,
+                "converge_dist": 1.5,
+            },
+        ),
+        vis_module(
+            viewer_backend=global_config.viewer,
+            rerun_config=smart_nav_rerun_config(
+                {
+                    "blueprint": _rerun_blueprint,
+                    "visual_override": {
+                        "world/camera_info": UnityBridgeModule.rerun_suppress_camera_info,
+                    },
+                    "static": {
+                        "world/color_image": UnityBridgeModule.rerun_static_pinhole,
+                    },
+                }
+            ),
+        ),
     )
     .remappings(
         [

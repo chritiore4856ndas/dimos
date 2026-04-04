@@ -70,10 +70,10 @@ class TestCrossWallPlanning:
         from dimos.core.blueprints import autoconnect
         from dimos.msgs.geometry_msgs.PointStamped import PointStamped
         from dimos.msgs.nav_msgs.Odometry import Odometry
+        from dimos.navigation.smart_nav.main import smart_nav
         from dimos.navigation.smart_nav.modules.sensor_scan_generation.sensor_scan_generation import (
             SensorScanGeneration,
         )
-        from dimos.robot.unitree.g1.blueprints.navigation._smart_nav import _smart_nav_sim
         from dimos.simulation.unity.module import UnityBridgeModule
 
         # -- Clear stale nav paths from previous runs -------------------------
@@ -91,7 +91,36 @@ class TestCrossWallPlanning:
                     vehicle_height=1.24,
                 ),
                 SensorScanGeneration.blueprint(),
-                _smart_nav_sim,
+                smart_nav(
+                    terrain_analysis={
+                        "obstacle_height_threshold": 0.1,
+                        "ground_height_threshold": 0.05,
+                        "max_relative_z": 0.3,
+                        "min_relative_z": -1.5,
+                    },
+                    local_planner={
+                        "max_speed": 2.0,
+                        "autonomy_speed": 2.0,
+                        "obstacle_height_threshold": 0.1,
+                        "max_relative_z": 0.3,
+                        "min_relative_z": -1.5,
+                        "freeze_ang": 180.0,
+                        "two_way_drive": False,
+                    },
+                    path_follower={
+                        "max_speed": 2.0,
+                        "autonomy_speed": 2.0,
+                        "max_acceleration": 4.0,
+                        "slow_down_distance_threshold": 0.5,
+                        "omni_dir_goal_threshold": 0.5,
+                        "two_way_drive": False,
+                    },
+                    far_planner={
+                        "sensor_range": 15.0,
+                        "is_static_env": True,
+                        "converge_dist": 1.5,
+                    },
+                ),
             )
             .remappings(
                 [
