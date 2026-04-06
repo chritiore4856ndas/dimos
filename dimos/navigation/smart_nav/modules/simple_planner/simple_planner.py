@@ -344,10 +344,10 @@ class SimplePlanner(Module[SimplePlannerConfig]):
 
     @rpc
     def start(self) -> None:
-        self.odometry._transport.subscribe(self._on_odom)
-        self.goal._transport.subscribe(self._on_goal)
-        self.terrain_map_ext._transport.subscribe(self._on_terrain_map_ext)
-        self.terrain_map._transport.subscribe(self._on_terrain_map)
+        self.odometry.subscribe(self._on_odom)
+        self.goal.subscribe(self._on_goal)
+        self.terrain_map_ext.subscribe(self._on_terrain_map_ext)
+        self.terrain_map.subscribe(self._on_terrain_map)
         self._running = True
         self._thread = threading.Thread(target=self._planning_loop, daemon=True)
         self._thread.start()

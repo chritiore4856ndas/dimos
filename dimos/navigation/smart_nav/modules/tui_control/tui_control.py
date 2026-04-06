@@ -23,6 +23,7 @@ import threading
 import time
 from typing import Any
 
+from dimos.core.core import rpc
 from dimos.core.module import Module, ModuleConfig
 from dimos.core.stream import Out
 from dimos.msgs.geometry_msgs.PointStamped import PointStamped
@@ -75,6 +76,7 @@ class TUIControlModule(Module[TUIControlConfig]):
         self._publish_thread = None
         self._input_thread = None
 
+    @rpc
     def start(self) -> None:
         self._running = True
         self._publish_thread = threading.Thread(target=self._publish_loop, daemon=True)
@@ -82,6 +84,7 @@ class TUIControlModule(Module[TUIControlConfig]):
         self._input_thread = threading.Thread(target=self._input_loop, daemon=True)
         self._input_thread.start()
 
+    @rpc
     def stop(self) -> None:
         self._running = False
         if self._publish_thread:
@@ -109,7 +112,7 @@ class TUIControlModule(Module[TUIControlConfig]):
                     yaw * scale * self.config.max_yaw_rate,
                 ],
             )
-            self.cmd_vel._transport.publish(twist)
+            self.cmd_vel.publish(twist)
             time.sleep(dt)
 
     def _input_loop(self) -> None:
@@ -214,4 +217,4 @@ class TUIControlModule(Module[TUIControlConfig]):
     def send_waypoint(self, x: float, y: float, z: float = 0.0) -> None:
         """Programmatically send a waypoint."""
         wp = PointStamped(x=x, y=y, z=z, frame_id="map")
-        self.way_point._transport.publish(wp)
+        self.way_point.publish(wp)

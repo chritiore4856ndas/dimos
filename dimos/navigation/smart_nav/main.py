@@ -235,6 +235,7 @@ def smart_nav(
         (TerrainAnalysis, "odometry", "corrected_odometry"),
         # FAR (or TARE) owns way_point — disconnect ClickToGoal's output.
         (ClickToGoal, "way_point", "_click_way_point_unused"),
+        (PGO, "global_map", "global_map_pgo"),
     ]
 
     return autoconnect(*modules).remappings(remappings)

@@ -21,6 +21,7 @@ downstream consumers (ReplanningAStarPlanner, WavefrontFrontierExplorer).
 
 from __future__ import annotations
 
+from dimos.core.core import rpc
 from dimos.core.module import Module, ModuleConfig
 from dimos.core.stream import In, Out
 from dimos.msgs.geometry_msgs.Pose import Pose
@@ -38,9 +39,10 @@ class OdomAdapter(Module[ModuleConfig]):
     corrected_odometry: In[Odometry]
     odom: Out[PoseStamped]
 
+    @rpc
     def start(self) -> None:
-        self.raw_odom._transport.subscribe(self._on_raw_odom)
-        self.corrected_odometry._transport.subscribe(self._on_corrected_odom)
+        self.raw_odom.subscribe(self._on_raw_odom)
+        self.corrected_odometry.subscribe(self._on_corrected_odom)
         print("[OdomAdapter] Started")
 
     def _on_raw_odom(self, msg: PoseStamped) -> None:
@@ -57,7 +59,7 @@ class OdomAdapter(Module[ModuleConfig]):
                 ],
             ),
         )
-        self.odometry._transport.publish(odom)
+        self.odometry.publish(odom)
 
     def _on_corrected_odom(self, msg: Odometry) -> None:
         ps = PoseStamped(
@@ -71,4 +73,4 @@ class OdomAdapter(Module[ModuleConfig]):
                 msg.orientation.w,
             ],
         )
-        self.odom._transport.publish(ps)
+        self.odom.publish(ps)

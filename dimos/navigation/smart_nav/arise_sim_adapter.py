@@ -29,6 +29,7 @@ import threading
 import time
 from typing import Any
 
+from dimos.core.core import rpc
 from dimos.core.module import Module, ModuleConfig
 from dimos.core.stream import In, Out
 from dimos.msgs.geometry_msgs.Quaternion import Quaternion
@@ -81,14 +82,16 @@ class AriseSimAdapter(Module[AriseSimAdapterConfig]):
         self._lock = threading.Lock()
         self._thread = None
 
+    @rpc
     def start(self) -> None:
-        self.odometry._transport.subscribe(self._on_odom)
-        self.registered_scan._transport.subscribe(self._on_scan)
+        self.odometry.subscribe(self._on_odom)
+        self.registered_scan.subscribe(self._on_scan)
         self._running = True
         self._thread = threading.Thread(target=self._imu_loop, daemon=True)
         self._thread.start()
         print("[AriseSimAdapter] Started — converting sim data for AriseSLAM")
 
+    @rpc
     def stop(self) -> None:
         self._running = False
         if self._thread:
@@ -116,7 +119,7 @@ class AriseSimAdapter(Module[AriseSimAdapterConfig]):
             tf_sensor_to_map = tf_map_to_sensor.inverse()
             body_cloud = cloud.transform(tf_sensor_to_map)
             body_cloud.frame_id = "sensor"
-            self.raw_points._transport.publish(body_cloud)
+            self.raw_points.publish(body_cloud)
         except Exception:
             import traceback
 
@@ -146,7 +149,7 @@ class AriseSimAdapter(Module[AriseSimAdapterConfig]):
                 # Rotate gravity [0, 0, g] into body frame
                 gx, gy, gz = _rotate_vec_by_quat_inv(0.0, 0.0, g, q.x, q.y, q.z, q.w)
 
-                self.imu._transport.publish(
+                self.imu.publish(
                     Imu(
                         angular_velocity=ang_vel,
                         linear_acceleration=Vector3(gx, gy, gz),

@@ -30,6 +30,7 @@ from typing import Any
 
 import numpy as np
 
+from dimos.core.core import rpc
 from dimos.core.module import Module, ModuleConfig
 from dimos.core.stream import In, Out
 from dimos.msgs.nav_msgs.Odometry import Odometry
@@ -85,13 +86,15 @@ class TerrainMapExt(Module[TerrainMapExtConfig]):
         self._thread = None
         self._voxels = {}
 
+    @rpc
     def start(self) -> None:
-        self.terrain_map._transport.subscribe(self._on_terrain)
-        self.odometry._transport.subscribe(self._on_odom)
+        self.terrain_map.subscribe(self._on_terrain)
+        self.odometry.subscribe(self._on_odom)
         self._running = True
         self._thread = threading.Thread(target=self._publish_loop, daemon=True)
         self._thread.start()
 
+    @rpc
     def stop(self) -> None:
         self._running = False
         if self._thread:
@@ -144,7 +147,7 @@ class TerrainMapExt(Module[TerrainMapExtConfig]):
 
             if pts:
                 arr = np.array(pts, dtype=np.float32)
-                self.terrain_map_ext._transport.publish(
+                self.terrain_map_ext.publish(
                     PointCloud2.from_numpy(arr, frame_id="map", timestamp=now)
                 )
 

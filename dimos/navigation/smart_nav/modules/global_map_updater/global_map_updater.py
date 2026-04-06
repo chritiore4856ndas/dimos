@@ -36,6 +36,7 @@ from typing import Any
 
 import numpy as np
 
+from dimos.core.core import rpc
 from dimos.core.module import Module, ModuleConfig
 from dimos.core.stream import In, Out
 from dimos.msgs.nav_msgs.Odometry import Odometry
@@ -96,13 +97,15 @@ class GlobalMapUpdater(Module[GlobalMapUpdaterConfig]):
         self._thread = None
         self._voxels = {}
 
+    @rpc
     def start(self) -> None:
-        self.registered_scan._transport.subscribe(self._on_scan)
-        self.odometry._transport.subscribe(self._on_odom)
+        self.registered_scan.subscribe(self._on_scan)
+        self.odometry.subscribe(self._on_odom)
         self._running = True
         self._thread = threading.Thread(target=self._publish_loop, daemon=True)
         self._thread.start()
 
+    @rpc
     def stop(self) -> None:
         self._running = False
         if self._thread:
@@ -165,7 +168,7 @@ class GlobalMapUpdater(Module[GlobalMapUpdaterConfig]):
                 if len(pts) > max_pts:
                     pts = pts[:max_pts]
                 arr = np.array(pts, dtype=np.float32)
-                self.global_map._transport.publish(
+                self.global_map.publish(
                     PointCloud2.from_numpy(arr, frame_id="map", timestamp=now)
                 )
 

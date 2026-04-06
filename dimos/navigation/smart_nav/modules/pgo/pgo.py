@@ -33,6 +33,7 @@ import gtsam
 import numpy as np
 from scipy.spatial import KDTree
 
+from dimos.core.core import rpc
 from dimos.core.module import Module, ModuleConfig
 from dimos.core.stream import In, Out
 from dimos.msgs.nav_msgs.Odometry import Odometry
@@ -403,15 +404,17 @@ class PGO(Module[PGOConfig]):
         self._thread = None
         self._pgo = None
 
+    @rpc
     def start(self) -> None:
         self._pgo = _SimplePGO(self.config)
-        self.odometry._transport.subscribe(self._on_odom)
-        self.registered_scan._transport.subscribe(self._on_scan)
+        self.odometry.subscribe(self._on_odom)
+        self.registered_scan.subscribe(self._on_scan)
         self._running = True
         self._thread = threading.Thread(target=self._publish_loop, daemon=True)
         self._thread.start()
         print("[PGO] Python PGO module started (gtsam iSAM2)")
 
+    @rpc
     def stop(self) -> None:
         self._running = False
         if self._thread:
@@ -486,7 +489,7 @@ class PGO(Module[PGOConfig]):
                 orientation=[float(q[0]), float(q[1]), float(q[2]), float(q[3])],
             ),
         )
-        self.corrected_odometry._transport.publish(odom)
+        self.corrected_odometry.publish(odom)
 
     def _publish_loop(self) -> None:
         """Periodically publish global map."""
@@ -502,7 +505,7 @@ class PGO(Module[PGOConfig]):
             if now - self._last_global_map_time > interval and pgo.num_key_poses > 0:
                 cloud_np = pgo.build_global_map(self.config.global_map_voxel_size)
                 if len(cloud_np) > 0:
-                    self.global_map._transport.publish(
+                    self.global_map.publish(
                         PointCloud2.from_numpy(cloud_np, frame_id="map", timestamp=now)
                     )
                     logger.debug(

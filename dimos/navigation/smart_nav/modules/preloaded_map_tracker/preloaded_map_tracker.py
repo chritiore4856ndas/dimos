@@ -40,6 +40,7 @@ from typing import Any
 import numpy as np
 import open3d as o3d
 
+from dimos.core.core import rpc
 from dimos.core.module import Module, ModuleConfig
 from dimos.core.stream import In, Out
 from dimos.msgs.nav_msgs.Odometry import Odometry
@@ -130,16 +131,18 @@ class PreloadedMapTracker(Module[PreloadedMapTrackerConfig]):
         self._trajectory_points = []
         self._preloaded_points = None
 
+    @rpc
     def start(self) -> None:
         self._load_preloaded_map()
-        self.registered_scan._transport.subscribe(self._on_scan)
-        self.odometry._transport.subscribe(self._on_odom)
+        self.registered_scan.subscribe(self._on_scan)
+        self.odometry.subscribe(self._on_odom)
         self._running = True
         self._scan_thread = threading.Thread(target=self._explored_publish_loop, daemon=True)
         self._scan_thread.start()
         self._preloaded_thread = threading.Thread(target=self._preloaded_publish_loop, daemon=True)
         self._preloaded_thread.start()
 
+    @rpc
     def stop(self) -> None:
         self._running = False
         if self._scan_thread:
@@ -172,7 +175,7 @@ class PreloadedMapTracker(Module[PreloadedMapTrackerConfig]):
 
             # Publish preloaded_map (cached, never grows)
             if self._preloaded_points is not None and len(self._preloaded_points) > 0:
-                self.preloaded_map._transport.publish(
+                self.preloaded_map.publish(
                     PointCloud2.from_numpy(self._preloaded_points, frame_id="map", timestamp=now)
                 )
 
@@ -181,7 +184,7 @@ class PreloadedMapTracker(Module[PreloadedMapTrackerConfig]):
                 traj = list(self._trajectory_points)
             if traj:
                 arr = np.array([[p[0], p[1], p[2]] for p in traj], dtype=np.float32)
-                self.trajectory._transport.publish(
+                self.trajectory.publish(
                     PointCloud2.from_numpy(arr, frame_id="map", timestamp=now)
                 )
 
@@ -276,7 +279,7 @@ class PreloadedMapTracker(Module[PreloadedMapTrackerConfig]):
 
             if pts:
                 arr = np.array(pts, dtype=np.float32)
-                self.explored_areas._transport.publish(
+                self.explored_areas.publish(
                     PointCloud2.from_numpy(arr, frame_id="map", timestamp=now)
                 )
 

@@ -24,6 +24,7 @@ import threading
 import time
 from typing import Any
 
+from dimos.core.core import rpc
 from dimos.core.module import Module
 from dimos.core.stream import In, Out
 from dimos.msgs.geometry_msgs.Transform import Transform
@@ -61,10 +62,12 @@ class SensorScanGeneration(Module):
         super().__setstate__(state)
         self._lock = threading.Lock()
 
+    @rpc
     def start(self) -> None:
-        self.odometry._transport.subscribe(self._on_odometry)
-        self.registered_scan._transport.subscribe(self._on_scan)
+        self.odometry.subscribe(self._on_odometry)
+        self.registered_scan.subscribe(self._on_scan)
 
+    @rpc
     def stop(self) -> None:
         super().stop()
 
@@ -96,7 +99,7 @@ class SensorScanGeneration(Module):
             sensor_cloud.frame_id = "sensor_at_scan"
 
             # Publish sensor-frame cloud
-            self.sensor_scan._transport.publish(sensor_cloud)
+            self.sensor_scan.publish(sensor_cloud)
 
             # Republish odometry with scan timestamp
             odom_at_scan = Odometry(
@@ -106,6 +109,6 @@ class SensorScanGeneration(Module):
                 pose=odom.pose,
                 twist=odom.twist,
             )
-            self.odometry_at_scan._transport.publish(odom_at_scan)
+            self.odometry_at_scan.publish(odom_at_scan)
         except Exception:
             pass  # Skip malformed messages silently

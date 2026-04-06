@@ -356,10 +356,10 @@ class SmoothLocalPlanner(Module[SmoothLocalPlannerConfig]):
 
     @rpc
     def start(self) -> None:
-        self.odometry._transport.subscribe(self._on_odom)
-        self.way_point._transport.subscribe(self._on_waypoint)
-        self.terrain_map._transport.subscribe(self._on_terrain_map)
-        self.terrain_map_ext._transport.subscribe(self._on_terrain_map_ext)
+        self.odometry.subscribe(self._on_odom)
+        self.way_point.subscribe(self._on_waypoint)
+        self.terrain_map.subscribe(self._on_terrain_map)
+        self.terrain_map_ext.subscribe(self._on_terrain_map_ext)
         self._running = True
         self._thread = threading.Thread(target=self._publish_loop, daemon=True)
         self._thread.start()
