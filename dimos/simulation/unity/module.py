@@ -346,10 +346,19 @@ class UnityBridgeModule(Module[UnityBridgeConfig]):
 
         return rrb.Blueprint(
             rrb.Vertical(
-                rrb.Spatial3DView(origin="world", name="3D"),
+                rrb.Spatial3DView(
+                    origin="world",
+                    name="3D",
+                    eye_controls=rrb.EyeControls3D(
+                        position=(0.0, 0.0, 20.0),
+                        look_target=(0.0, 0.0, 0.0),
+                        eye_up=(0.0, 1.0, 0.0),
+                    ),
+                ),
                 rrb.Spatial2DView(origin="world/color_image", name="Camera"),
                 row_shares=[2, 1],
             ),
+            collapse_panels=True,
         )
 
     @staticmethod
