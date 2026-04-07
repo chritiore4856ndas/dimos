@@ -40,6 +40,7 @@ from pydantic.experimental.pipeline import validate_as
 
 from dimos.core.native_module import NativeModule, NativeModuleConfig
 from dimos.core.stream import Out
+from dimos.utils.change_detect import Glob
 from dimos.hardware.sensors.lidar.livox.ports import (
     SDK_CMD_DATA_PORT,
     SDK_HOST_CMD_DATA_PORT,
@@ -110,9 +111,10 @@ def _find_candidate_ips(lidar_ip: str, local_ips: list[str]) -> list[str]:
 class FastLio2Config(NativeModuleConfig):
     """Config for the FAST-LIO2 + Livox Mid-360 native module."""
 
-    cwd: str | None = "cpp"
+    cwd: str | None = str(Path(__file__).parent / "cpp")
     executable: str = "result/bin/fastlio2_native"
     build_command: str | None = "nix build .#fastlio2_native"
+    rebuild_on_change: list[str | Glob] | None = [Glob("*.cpp"), Glob("*.hpp")]
 
     # Livox SDK hardware config
     host_ip: str = "192.168.1.5"
@@ -139,6 +141,9 @@ class FastLio2Config(NativeModuleConfig):
     voxel_size: float = 0.1
     sor_mean_k: int = 50
     sor_stddev: float = 1.0
+    # Drop points within this radius of the sensor in world frame.
+    # Catches robot body self-hits that the body-frame blind filter misses.
+    blind_radius: float = 0.5
 
     # Global voxel map (disabled when map_freq <= 0)
     map_freq: float = 0.0
@@ -168,7 +173,7 @@ class FastLio2Config(NativeModuleConfig):
 
     # init_pose is computed from mount; config is resolved to config_path
     init_pose: list[float] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
-    cli_exclude: frozenset[str] = frozenset({"config", "mount"})
+    cli_exclude: frozenset[str] = frozenset({"config", "mount", "rebuild_on_change"})
 
     def model_post_init(self, __context: object) -> None:
         """Resolve config_path and compute init_pose from mount."""

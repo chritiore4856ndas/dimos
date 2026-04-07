@@ -233,7 +233,7 @@ class SimplePlannerConfig(ModuleConfig):
     # by default: for a ~0.5 m diameter robot this keeps the A* path ~0.4 m
     # off every wall. Stuck-detection (below) shrinks this when a
     # doorway would otherwise be unpassable.
-    inflation_radius: float = 0.1
+    inflation_radius: float = 0.2
     # Look-ahead distance along the planned path to emit as the next
     # waypoint for the local planner.
     lookahead_distance: float = 2.0
@@ -258,7 +258,7 @@ class SimplePlannerConfig(ModuleConfig):
     # Shrinking too aggressively risks clipping obstacles, so we bottom
     # out at ``stuck_min_inflation``.
     stuck_shrink_factor: float = 0.5
-    stuck_min_inflation: float = 0.0
+    stuck_min_inflation: float = 0.2
 
 
 class SimplePlanner(Module[SimplePlannerConfig]):
@@ -483,7 +483,7 @@ class SimplePlanner(Module[SimplePlannerConfig]):
                 wx, wy = cm.cell_to_world(ix, iy)
                 pts[i, 0] = wx
                 pts[i, 1] = wy
-                pts[i, 2] = rz + 0.1  # lift slightly above robot for visibility
+                pts[i, 2] = rz - self._GROUND_OFFSET_BELOW_ROBOT + 0.1
         self.costmap_cloud.publish(PointCloud2.from_numpy(pts, frame_id="map", timestamp=now))
 
     def _publish_from_cached(self, rx: float, ry: float, gz: float, now: float) -> None:

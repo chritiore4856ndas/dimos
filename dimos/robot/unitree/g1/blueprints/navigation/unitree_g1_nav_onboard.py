@@ -71,15 +71,11 @@ unitree_g1_nav_onboard = (
             terrain_analysis={
                 "obstacle_height_threshold": 0.01,
                 "ground_height_threshold": 0.01,
-                "max_relative_z": 0.3,
-                "min_relative_z": -1.5,
             },
             local_planner={
                 "max_speed": 2.0,
                 "autonomy_speed": 2.0,
                 "obstacle_height_threshold": 0.05,
-                "max_relative_z": 0.3,
-                "min_relative_z": -1.5,
                 "freeze_ang": 180.0,
                 "two_way_drive": False,
             },
@@ -92,9 +88,9 @@ unitree_g1_nav_onboard = (
                 "two_way_drive": False,
             },
             simple_planner={
-                "cell_size": 0.2,
-                "obstacle_height_threshold": 0.16,
-                "inflation_radius": 0.2,
+                "cell_size": 0.05,
+                "obstacle_height_threshold": 0.20,
+                "inflation_radius": 0.3,
                 "lookahead_distance": 2.0,
                 "replan_rate": 5.0,
                 "replan_cooldown": 2.0,

@@ -71,12 +71,14 @@ class TerrainMapExt(Module[TerrainMapExtConfig]):
         self._thread: threading.Thread | None = None
         # Voxel storage: key=(ix,iy,iz) -> (x, y, z, intensity, timestamp)
         self._voxels: dict[tuple[int, int, int], tuple[float, float, float, float, float]] = {}
+        # Reverse index: (ix,iy) -> set of iz values present in _voxels
+        self._column_index: dict[tuple[int, int], set[int]] = {}
         self._robot_x = 0.0
         self._robot_y = 0.0
 
     def __getstate__(self) -> dict[str, Any]:
         s = super().__getstate__()
-        for k in ("_lock", "_thread", "_voxels"):
+        for k in ("_lock", "_thread", "_voxels", "_column_index"):
             s.pop(k, None)
         return s
 
@@ -85,6 +87,7 @@ class TerrainMapExt(Module[TerrainMapExtConfig]):
         self._lock = threading.Lock()
         self._thread = None
         self._voxels = {}
+        self._column_index = {}
 
     @rpc
     def start(self) -> None:
@@ -114,13 +117,34 @@ class TerrainMapExt(Module[TerrainMapExtConfig]):
         vs = self.config.voxel_size
         now = time.time()
 
+        # Vectorized voxel index computation
+        indices = np.floor(points[:, :3] / vs).astype(int)
+
         with self._lock:
-            for i in range(len(points)):
+            # Z-column clearing: for each observed (ix, iy) column, remove
+            # all existing voxels so that disappeared obstacles don't persist
+            # as phantoms until time-decay.  Uses the reverse index for O(1)
+            # per-column lookup instead of scanning the full voxel dict.
+            observed_columns: set[tuple[int, int]] = set()
+            for i in range(len(indices)):
+                observed_columns.add((int(indices[i, 0]), int(indices[i, 1])))
+
+            for column in observed_columns:
+                iz_set = self._column_index.pop(column, None)
+                if iz_set:
+                    for iz in iz_set:
+                        self._voxels.pop((*column, iz), None)
+
+            # Insert fresh observations and rebuild column index entries
+            for i in range(len(indices)):
+                ix, iy, iz = int(indices[i, 0]), int(indices[i, 1]), int(indices[i, 2])
                 x, y, z = float(points[i, 0]), float(points[i, 1]), float(points[i, 2])
-                ix = int(np.floor(x / vs))
-                iy = int(np.floor(y / vs))
-                iz = int(np.floor(z / vs))
                 self._voxels[(ix, iy, iz)] = (x, y, z, 0.0, now)
+                col = (ix, iy)
+                if col in self._column_index:
+                    self._column_index[col].add(iz)
+                else:
+                    self._column_index[col] = {iz}
 
     def _publish_loop(self) -> None:
         dt = 1.0 / self.config.publish_rate
@@ -144,6 +168,12 @@ class TerrainMapExt(Module[TerrainMapExtConfig]):
                         pts.append([x, y, z])
                 for k in expired:
                     del self._voxels[k]
+                    col = (k[0], k[1])
+                    iz_set = self._column_index.get(col)
+                    if iz_set is not None:
+                        iz_set.discard(k[2])
+                        if not iz_set:
+                            del self._column_index[col]
 
             if pts:
                 arr = np.array(pts, dtype=np.float32)

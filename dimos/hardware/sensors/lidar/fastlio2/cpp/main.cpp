@@ -404,6 +404,7 @@ int main(int argc, char** argv) {
     filter_cfg.voxel_size = mod.arg_float("voxel_size", 0.1f);
     filter_cfg.sor_mean_k = mod.arg_int("sor_mean_k", 50);
     filter_cfg.sor_stddev = mod.arg_float("sor_stddev", 1.0f);
+    filter_cfg.blind_radius = mod.arg_float("blind_radius", 0.5f);
     float map_voxel_size = mod.arg_float("map_voxel_size", 0.1f);
     float map_max_range = mod.arg_float("map_max_range", 100.0f);
     float map_freq = mod.arg_float("map_freq", 0.0f);
@@ -574,6 +575,20 @@ int main(int argc, char** argv) {
             if (world_cloud && !world_cloud->empty()) {
                 auto filtered = filter_cloud<PointType>(world_cloud, filter_cfg);
 
+                // Drop points near the sensor — catches robot body
+                // self-hits that the body-frame blind filter misses.
+                // Both pose[] and world_cloud points are in FAST-LIO's
+                // internal map frame (init_pose is applied later in
+                // publish_lidar), so compare directly without transform.
+                if (filter_cfg.blind_radius > 0.0f) {
+                    filtered = remove_near_sensor<PointType>(
+                        filtered,
+                        static_cast<float>(pose[0]),
+                        static_cast<float>(pose[1]),
+                        static_cast<float>(pose[2]),
+                        filter_cfg.blind_radius);
+                }
+
                 // Per-scan publish at pointcloud_freq
                 if (!g_lidar_topic.empty() && now - last_pc_publish >= pc_interval) {
                     publish_lidar(filtered, ts);
@@ -590,6 +605,15 @@ int main(int argc, char** argv) {
                             static_cast<float>(pose[1]),
                             static_cast<float>(pose[2]));
                         auto map_cloud = global_map->to_cloud<PointType>();
+                        // Also filter the accumulated map near the sensor
+                        if (filter_cfg.blind_radius > 0.0f) {
+                            map_cloud = remove_near_sensor<PointType>(
+                                map_cloud,
+                                static_cast<float>(pose[0]),
+                                static_cast<float>(pose[1]),
+                                static_cast<float>(pose[2]),
+                                filter_cfg.blind_radius);
+                        }
                         publish_lidar(map_cloud, ts, g_map_topic);
                         last_map_publish = now;
                     }

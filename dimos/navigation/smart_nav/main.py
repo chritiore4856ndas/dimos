@@ -80,7 +80,6 @@ def smart_nav(
         clicked_point:   In[PointStamped]  — click-to-goal from UI
         joy_cmd:         In[Twist]         — optional joystick override
         tele_cmd_vel:    In[Twist]         — optional teleop command
-        agent_cmd_vel:   In[TwistDuration] — optional skill/agent command
 
         cmd_vel:            Out[Twist]        — final velocity command (CmdVelMux)
         corrected_odometry: Out[Odometry]     — PGO loop-closure-corrected pose
@@ -128,19 +127,19 @@ def smart_nav(
         TerrainAnalysis.blueprint(
             **{
                 # Input filtering
-                "scan_voxel_size": 0.15,
+                "scan_voxel_size": 0.05,
                 # Voxel grid
-                "terrain_voxel_size": 1.0,
+                "terrain_voxel_size": 0.2,
                 "terrain_voxel_half_width": 10,
                 # Obstacle/ground classification
-                "obstacle_height_threshold": 0.2,
+                "obstacle_height_threshold": 0.1,
                 "ground_height_threshold": 0.1,
                 "min_relative_z": -1.5,
-                "max_relative_z": 1.5,
+                "max_relative_z": 0.3,
                 "use_sorting": True,
                 "quantile_z": 0.25,
                 # Decay and clearing
-                "decay_time": 2.0,
+                "decay_time": 1.0,
                 "no_decay_distance": 1.5,
                 "clearing_distance": 8.0,
                 "clear_dynamic_obstacles": True,
@@ -148,7 +147,7 @@ def smart_nav(
                 "no_data_block_skip_count": 0,
                 "min_block_point_count": 10,
                 # Voxel culling
-                "voxel_point_update_threshold": 30,
+                "voxel_point_update_threshold": 100,
                 "voxel_time_update_threshold": 2.0,
                 # Dynamic obstacle filtering
                 "min_dynamic_obstacle_distance": 0.14,
@@ -162,7 +161,7 @@ def smart_nav(
                 "limit_ground_lift": False,
                 "max_ground_lift": 0.15,
                 "distance_ratio_z": 0.2,
-                "vehicle_height": 1.2 if vehicle_height is None else vehicle_height,
+                "vehicle_height": 1.5 if vehicle_height is None else vehicle_height,
                 **(terrain_analysis or {}),
             }
         ),
@@ -172,9 +171,9 @@ def smart_nav(
                 "use_terrain_analysis": True,
                 "max_speed": 1.0,
                 "autonomy_speed": 1.0,
-                "obstacle_height_threshold": 0.2,
-                "max_relative_z": 1.5,
-                "min_relative_z": -1.5,
+                "obstacle_height_threshold": 0.1,
+                "max_relative_z": 0.3,
+                "min_relative_z": -0.4,
                 **(local_planner or {}),
             }
         ),
@@ -183,16 +182,16 @@ def smart_nav(
                 "autonomy_mode": True,
                 "max_speed": 1.0,
                 "autonomy_speed": 1.0,
-                "max_acceleration": 2.0,
-                "slow_down_distance_threshold": 0.2,
-                "omni_dir_goal_threshold": 0.5,
+                "max_acceleration": 1.0,
+                "slow_down_distance_threshold": 1.0,
+                "omni_dir_goal_threshold": 1.0,
                 **(path_follower or {}),
             }
         ),
         *(
             [SimplePlanner.blueprint(**(simple_planner or {}))]
             if use_simple_planner
-            else [FarPlanner.blueprint(**{"sensor_range": 15.0, **(far_planner or {})})]
+            else [FarPlanner.blueprint(**{"sensor_range": 30.0, **(far_planner or {})})]
         ),
         PGO.blueprint(**(pgo or {})),
         ClickToGoal.blueprint(**(click_to_goal or {})),
@@ -202,13 +201,14 @@ def smart_nav(
         modules.append(
             TerrainMapExt.blueprint(
                 **{
-                    "voxel_size": 0.3,
+                    "voxel_size": 0.1,
                     # Walls are static — keep them around long enough that
                     # a global planner (SimplePlanner / FarPlanner) doesn't
                     # see freshly-empty cells behind the robot and route
                     # paths straight through the walls it can't currently
                     # see. 8 s was way too aggressive for that.
-                    "decay_time": 300.0,
+                    # "decay_time": 300.0,
+                    "decay_time": 4.0,
                     "publish_rate": 2.0,
                     "max_range": 40.0,
                     **(terrain_map_ext or {}),
