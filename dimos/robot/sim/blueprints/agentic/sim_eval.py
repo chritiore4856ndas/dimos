@@ -23,7 +23,7 @@ Usage:
     dimos --simulation run sim-eval
 """
 
-from dimos.core.blueprints import autoconnect
+from dimos.core.coordination.blueprints import autoconnect
 from dimos.robot.sim.blueprints.agentic.sim_temporal_memory import sim_temporal_memory
 
 sim_eval = autoconnect(sim_temporal_memory)

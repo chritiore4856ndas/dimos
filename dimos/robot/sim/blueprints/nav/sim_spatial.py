@@ -14,7 +14,7 @@
 
 """DimSim spatial blueprint — nav + spatial memory."""
 
-from dimos.core.blueprints import autoconnect
+from dimos.core.coordination.blueprints import autoconnect
 from dimos.perception.spatial_perception import SpatialMemory
 from dimos.robot.sim.blueprints.nav.sim_nav import sim_nav
 

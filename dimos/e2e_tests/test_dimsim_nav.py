@@ -102,7 +102,7 @@ def sim_nav():
     else:
         log_file = None
 
-    render = os.environ.get("DIMSIM_RENDER", "cpu")
+    render = os.environ.get("DIMSIM_RENDER", "gpu")
     venv_bin = str(Path(sys.prefix) / "bin")
     env = {
         **os.environ,

@@ -24,6 +24,7 @@ DimSimConnection while the NativeModule bridge handles sensor data directly.
 """
 
 import math
+import os
 from threading import Thread
 import time
 
@@ -40,10 +41,11 @@ from dimos.utils.logging_config import setup_logger
 
 logger = setup_logger()
 
-# DimSim captures at 960x432 with 80-degree horizontal FOV.
-_DIMSIM_WIDTH = 960
-_DIMSIM_HEIGHT = 432
-_DIMSIM_FOV_DEG = 80
+# DimSim captures at 640x288. Default vertical FOV = 46° → 87° horizontal (matches Go2 D435i).
+# Overridable via DIMSIM_CAMERA_FOV env var.
+_DIMSIM_WIDTH = 640
+_DIMSIM_HEIGHT = 288
+_DIMSIM_FOV_DEG = int(os.environ.get("DIMSIM_CAMERA_FOV", "46"))
 
 
 def _camera_info_static() -> CameraInfo:
@@ -146,6 +148,11 @@ class DimSimTF(Module):
         from reactivex.disposable import Disposable
 
         self._disposables.add(Disposable(self.odom.subscribe(self._on_odom)))
+
+        # Publish camera_info immediately so the rerun pinhole exists
+        # before the first image arrives (avoids "2D visualizers require
+        # a pinhole ancestor" error).
+        self.camera_info.publish(_camera_info_static())
 
         self._camera_info_thread = Thread(target=self._publish_camera_info_loop, daemon=True)
         self._camera_info_thread.start()

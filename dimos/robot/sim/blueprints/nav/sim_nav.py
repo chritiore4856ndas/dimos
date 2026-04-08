@@ -14,7 +14,7 @@
 
 """DimSim navigation blueprint — basic + mapping + planning + exploration."""
 
-from dimos.core.blueprints import autoconnect
+from dimos.core.coordination.blueprints import autoconnect
 from dimos.mapping.costmapper import CostMapper
 from dimos.mapping.pointclouds.occupancy import (
     HeightCostConfig,

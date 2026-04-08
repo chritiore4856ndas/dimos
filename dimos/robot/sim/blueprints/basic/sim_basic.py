@@ -16,7 +16,7 @@
 
 from typing import Any
 
-from dimos.core.blueprints import autoconnect
+from dimos.core.coordination.blueprints import autoconnect
 from dimos.core.global_config import global_config
 from dimos.core.transport import JpegLcmTransport
 from dimos.msgs.sensor_msgs.Image import Image
@@ -32,7 +32,10 @@ class _SimLCM(LCM):  # type: ignore[misc]
     _JPEG_TOPICS = frozenset({"/color_image"})
 
     def decode(self, msg: bytes, topic: Any) -> Any:  # type: ignore[override]
-        if getattr(topic, "topic", None) in self._JPEG_TOPICS:
+        topic_str = getattr(topic, "topic", "") or ""
+        # topic.topic may include type suffix: "/color_image#sensor_msgs.Image"
+        bare_topic = topic_str.split("#")[0]
+        if bare_topic in self._JPEG_TOPICS:
             return Image.lcm_jpeg_decode(msg)
         return super().decode(msg, topic)
 
@@ -70,13 +73,21 @@ def _convert_camera_info(camera_info: Any) -> Any:
 
 def _convert_color_image(image: Any) -> Any:
     # Log image at both:
-    #   world/color_image                  — 2D view (no pinhole ancestor)
+    #   camera/color_image                 — 2D view outside the 3D world tree
     #   world/tf/camera_optical/image      — 3D view (child of pinhole)
     rerun_data = image.to_rerun()
     return [
-        ("world/color_image", rerun_data),
+        ("camera/color_image", rerun_data),
         ("world/tf/camera_optical/image", rerun_data),
     ]
+
+
+def _convert_depth_image(image: Any) -> Any:
+    # Keep depth in the 2D pane only.
+    # Logging it under the pinhole makes rerun reconstruct a 3D depth wedge,
+    # which is visually noisy and can be mistaken for a map artifact.
+    rerun_data = image.to_rerun()
+    return [("camera/depth_image", rerun_data)]
 
 
 def _convert_global_map(grid: Any) -> Any:
@@ -106,17 +117,64 @@ def _static_base_link(rr: Any) -> list[Any]:
     ]
 
 
+def _static_camera_pinhole(rr: Any) -> list[Any]:
+    """Log pinhole at rerun startup — ensures it exists before the first image."""
+    import math
+    import os
+
+    fov_deg = int(os.environ.get("DIMSIM_CAMERA_FOV", "46"))
+    w, h = 640, 288
+    fx = (w / 2) / math.tan(math.radians(fov_deg) / 2)
+    return [
+        rr.Pinhole(
+            focal_length=[fx, fx],
+            principal_point=[w / 2, h / 2],
+            width=w, height=h,
+            image_plane_distance=1.0,
+        ),
+        rr.Transform3D(parent_frame="tf#/camera_optical"),
+    ]
+
+
+def _sim_rerun_blueprint() -> Any:
+    """Show color + depth feeds next to the 3D world view."""
+    import rerun as rr
+    import rerun.blueprint as rrb
+
+    return rrb.Blueprint(
+        rrb.Horizontal(
+            rrb.Vertical(
+                rrb.Spatial2DView(origin="camera/color_image", name="Camera"),
+                rrb.Spatial2DView(origin="camera/depth_image", name="Depth"),
+                row_shares=[1, 1],
+            ),
+            rrb.Spatial3DView(
+                origin="world",
+                name="3D",
+                background=rrb.Background(kind="SolidColor", color=[0, 0, 0]),
+                line_grid=rrb.LineGrid3D(
+                    plane=rr.components.Plane3D.XY.with_distance(0.2),
+                ),
+            ),
+            column_shares=[1, 2],
+        ),
+    )
+
+
 rerun_config = {
+    "blueprint": _sim_rerun_blueprint,
     "pubsubs": [_SimLCM()],
     "visual_override": {
         "world/camera_info": _convert_camera_info,
         "world/color_image": _convert_color_image,
+        "world/depth_image": _convert_depth_image,
         "world/global_map": _convert_global_map,
         "world/navigation_costmap": _convert_navigation_costmap,
         "world/pointcloud": _suppress,
     },
     "static": {
         "world/tf/base_link": _static_base_link,
+        "world/tf/camera_optical": _static_camera_pinhole,
     },
 }
 

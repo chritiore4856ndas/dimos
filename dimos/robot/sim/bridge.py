@@ -80,8 +80,24 @@ class DimSimBridgeConfig(NativeModuleConfig):
     port: int = 8090
     local: bool = False  # Use local DimSim repo instead of installed CLI
 
+    # Sensor publish rates (ms). None = use DimSim defaults (images=200, lidar=200, odom=20).
+    image_rate_ms: int | None = None
+    lidar_rate_ms: int | None = None
+    odom_rate_ms: int | None = None
+
+    # Depth image toggle. Set False to skip depth publishing (saves bandwidth).
+    enable_depth: bool = True
+
+    # Camera FOV in degrees. None = use DimSim default (80).
+    camera_fov: int | None = None
+
     # These fields are handled via extra_args, not to_cli_args().
-    cli_exclude: frozenset[str] = frozenset({"scene", "port", "local"})
+    cli_exclude: frozenset[str] = frozenset({
+        "scene", "port", "local",
+        "image_rate_ms", "lidar_rate_ms", "odom_rate_ms",
+        "enable_depth",
+        "camera_fov",
+    })
 
     # Populated by _resolve_paths() — deno run args + dev subcommand + scene/port.
     extra_args: list[str] = Field(default_factory=list)
@@ -126,7 +142,30 @@ class DimSimBridge(NativeModule, Camera, Pointcloud):
 
         Set DIMSIM_LOCAL=1 to use local DimSim repo instead of installed CLI.
         """
-        dev_args = ["dev", "--scene", self.config.scene, "--port", str(self.config.port)]
+        # DIMSIM_SCENE env var overrides config (e.g. DIMSIM_SCENE=empty)
+        scene = os.environ.get("DIMSIM_SCENE", "").strip() or self.config.scene
+        dev_args = ["dev", "--scene", scene, "--port", str(self.config.port)]
+
+        # Sensor publish rates (env var overrides config)
+        image_rate = os.environ.get("DIMSIM_IMAGE_RATE", "").strip() or self.config.image_rate_ms
+        lidar_rate = os.environ.get("DIMSIM_LIDAR_RATE", "").strip() or self.config.lidar_rate_ms
+        odom_rate = os.environ.get("DIMSIM_ODOM_RATE", "").strip() or self.config.odom_rate_ms
+        if image_rate is not None:
+            dev_args.extend(["--image-rate", str(image_rate)])
+        if lidar_rate is not None:
+            dev_args.extend(["--lidar-rate", str(lidar_rate)])
+        if odom_rate is not None:
+            dev_args.extend(["--odom-rate", str(odom_rate)])
+
+        # Depth image toggle
+        no_depth = os.environ.get("DIMSIM_DISABLE_DEPTH", "").strip() in ("1", "true")
+        if no_depth or not self.config.enable_depth:
+            dev_args.append("--no-depth")
+
+        # Camera FOV
+        camera_fov = os.environ.get("DIMSIM_CAMERA_FOV", "").strip() or self.config.camera_fov
+        if camera_fov is not None:
+            dev_args.extend(["--camera-fov", str(camera_fov)])
 
         # DIMSIM_HEADLESS=1 → launch headless Chrome (no browser tab needed)
         # Uses CPU rendering (SwiftShader) by default — no GPU required for CI.
