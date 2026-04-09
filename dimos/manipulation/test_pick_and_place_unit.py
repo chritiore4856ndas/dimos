@@ -16,13 +16,18 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
+import open3d as o3d
 import pytest
 
 from dimos.core.module import ModuleBase
 from dimos.manipulation.pick_and_place_module import PickAndPlaceModule
+from dimos.msgs.geometry_msgs.PoseStamped import PoseStamped
 from dimos.msgs.geometry_msgs.Vector3 import Vector3
+from dimos.msgs.sensor_msgs.Image import Image
+from dimos.msgs.sensor_msgs.PointCloud2 import PointCloud2
+from dimos.perception.detection.type.detection3d.object import Object as DetObject
 
 
 def _make_det_object(
@@ -30,14 +35,22 @@ def _make_det_object(
     object_id: str = "abc12345",
     center: tuple[float, float, float] = (0.5, 0.0, 0.3),
     size: tuple[float, float, float] = (0.05, 0.05, 0.10),
-) -> MagicMock:
-    """Create a lightweight mock DetObject with the attributes used by PickAndPlaceModule."""
-    obj = MagicMock()
-    obj.name = name
-    obj.object_id = object_id
-    obj.center = Vector3(x=center[0], y=center[1], z=center[2])
-    obj.size = Vector3(x=size[0], y=size[1], z=size[2])
-    return obj
+) -> DetObject:
+    """Create a DetObject with the given attributes and sensible defaults."""
+    return DetObject(
+        name=name,
+        object_id=object_id,
+        center=Vector3(x=center[0], y=center[1], z=center[2]),
+        size=Vector3(x=size[0], y=size[1], z=size[2]),
+        pose=PoseStamped(),
+        pointcloud=PointCloud2(o3d.geometry.PointCloud()),
+        bbox=(0.0, 0.0, 1.0, 1.0),
+        track_id=0,
+        class_id=0,
+        confidence=1.0,
+        ts=0.0,
+        image=Image(),
+    )
 
 
 @pytest.fixture
