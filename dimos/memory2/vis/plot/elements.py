@@ -86,4 +86,20 @@ class HLine:
     opacity: float = 1.0
 
 
-PlotElement = Union[Series, Markers, HLine]
+@dataclass
+class VLine:
+    """Vertical reference line.
+
+    Always draws on the primary x-axis — twin axes all share the same x, so
+    there's no need for an ``axis`` field: the line spans the full y range
+    regardless of which axes owns it.
+    """
+
+    x: float
+    color: str = "#888888"
+    style: Style = Style.dashed
+    label: str | None = None
+    opacity: float = 1.0
+
+
+PlotElement = Union[Series, Markers, HLine, VLine]

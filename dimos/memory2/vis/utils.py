@@ -72,5 +72,3 @@ def mosaic(
 
     result = Image(data=canvas, format=ImageFormat.BGR)
     return Observation(id=0, ts=0.0, data_type=Image, _data=result, tags={"mosaic": True})
-    result = Image(data=canvas, format=ImageFormat.BGR)
-    return Observation(id=0, ts=0.0, data_type=Image, _data=result, tags={"mosaic": True})

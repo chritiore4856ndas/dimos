@@ -23,12 +23,44 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 from dimos.memory2.vis.color import palette_iter
-from dimos.memory2.vis.plot.elements import HLine, Markers, Series
+from dimos.memory2.vis.plot.elements import HLine, Markers, Series, VLine
+from dimos.memory2.vis.plot.plot import TimeAxis
 
 if TYPE_CHECKING:
     from dimos.memory2.vis.plot.plot import Plot
 
 matplotlib.use("Agg")
+
+
+def _apply_time_axis(ax: Any, plot: Plot) -> None:
+    """Install an x-axis tick formatter based on plot.time_axis."""
+    if plot.time_axis == TimeAxis.raw:
+        return
+
+    # Reference point: earliest sample across all Series/Markers.
+    all_ts: list[float] = []
+    for el in plot.elements:
+        if isinstance(el, (Series, Markers)) and el.ts:
+            all_ts.append(el.ts[0])
+    if not all_ts:
+        return
+    t0 = min(all_ts)
+
+    from matplotlib.ticker import FuncFormatter
+
+    if plot.time_axis == TimeAxis.relative:
+
+        def fmt(ts: float, _: int = 0) -> str:
+            return f"{ts - t0:.0f}s"
+    elif plot.time_axis == TimeAxis.absolute:
+        from datetime import datetime
+
+        def fmt(ts: float, _: int = 0) -> str:
+            return datetime.fromtimestamp(ts).strftime("%H:%M:%S")
+    else:
+        return
+
+    ax.xaxis.set_major_formatter(FuncFormatter(fmt))
 
 
 def _break_on_gaps(
@@ -116,12 +148,14 @@ def render(plot: Plot, width: float = 10, height: float = 3.5) -> str:
         axis_colors: dict[str, str] = {}
 
         for el in plot.elements:
-            target = axis_for(el.axis)
+            # VLine has no axis field — it always draws on the primary.
+            target = ax if isinstance(el, VLine) else axis_for(el.axis)
             color = el.color
             if color is None and isinstance(el, (Series, Markers)):
                 color = next(color_iter)
             if (
-                el.axis is not None
+                not isinstance(el, VLine)
+                and el.axis is not None
                 and el.axis not in axis_colors
                 and isinstance(el, (Series, Markers))
                 and color is not None
@@ -150,6 +184,16 @@ def render(plot: Plot, width: float = 10, height: float = 3.5) -> str:
             elif isinstance(el, HLine):
                 target.axhline(
                     el.y,
+                    color=el.color,
+                    linestyle=el.style.value,
+                    linewidth=1,
+                    label=el.label,
+                    alpha=el.opacity,
+                )
+            elif isinstance(el, VLine):
+                # Always on the primary — twins share x, so visually identical.
+                ax.axvline(
+                    el.x,
                     color=el.color,
                     linestyle=el.style.value,
                     linewidth=1,
@@ -192,6 +236,7 @@ def render(plot: Plot, width: float = 10, height: float = 3.5) -> str:
             )
 
         ax.set_xlabel("time (s)")
+        _apply_time_axis(ax, plot)
 
         # Make room on the right for offset twin spines (each extra twin past
         # the first needs about `twin_offset_step` of axes-relative width).

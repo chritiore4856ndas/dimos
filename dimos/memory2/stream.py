@@ -164,6 +164,11 @@ class Stream(CompositeResource, Generic[T]):
     def at(self, t: float, tolerance: float = 1.0) -> Stream[T]:
         return self._with_filter(AtFilter(t, tolerance))
 
+    def at_relative(self, t: float, tolerance: float = 1.0) -> Stream[T]:
+        """Like `at` but ``t`` is seconds from the first observation."""
+        t0 = self.first().ts
+        return self.at(t0 + t, tolerance=tolerance)
+
     def near(self, pose: Any, radius: float) -> Stream[T]:
         return self._with_filter(NearFilter(pose, radius))
 

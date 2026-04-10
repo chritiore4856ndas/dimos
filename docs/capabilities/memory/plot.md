@@ -25,7 +25,6 @@ for i in range(14):
 
 color_check.to_svg("assets/plot_colors.svg")
 ```
-
 ![output](assets/plot_colors.svg)
 
 named colors can also be used explicitly. when you pin a series to one of
@@ -47,6 +46,7 @@ p.add(Series(ts=xs, values=[math.sin(2 * x) for x in xs]))
 p.add(HLine(y=0, style=Style.dashed, opacity=0.5, color="#ff0000"))
 p.to_svg("assets/plot_named.svg")
 ```
+
 ![output](assets/plot_named.svg)
 
 # speed plot
@@ -93,7 +93,7 @@ plot.to_svg("assets/plot_robot_data.svg")
 
 # Filling in gaps
 
-Let's do a fancy semantic search plotting the vector distance to a "door"
+Let's find some plants!
 
 ```python session=robotdata
 from dimos.memory2.vis.plot.elements import Series, HLine, Style
@@ -102,83 +102,78 @@ from dimos.memory2.transform import normalize, smooth_time
 
 from dimos.models.embedding.clip import CLIPModel
 clip = CLIPModel()
-search_vector = clip.embed_text("door")
+search_vector = clip.embed_text("plant")
 
 # we will cache this into memory since it takes a second,
 # and use it to play with graphing
-doorness_query = (
+plantness_query = (
     store.streams.color_image_embedded
         .search(search_vector)
         # search() returns observations sorted by similarity, we re-sort by time
         .order_by("ts")
         # extract similarity float — lives on the obs
         .map_data(lambda obs: obs.similarity)
-        # smooth(n) smooths over n elements;
-        # smooth_time(seconds) uses a sliding time window. we use smooth_time
-        # to be able to later corelate this with brightness which comes in at
-        # different frequency
-        .transform(smooth_time(5.0))
-        .transform(normalize())
 )
 
 # we've built our query
-print(doorness_query)
+print(plantness_query)
 
 # we evaluate it into a in-memory stream,
 # since we want to further process/plot multiple times
-doorness_query_cached = doorness_query.cache()
+plantness_query_cached = plantness_query.cache()
 
-print(doorness_query_cached)
-print(doorness_query_cached.summary())
+print(plantness_query_cached)
+print(plantness_query_cached.summary())
 
 plot = Plot()
 
-plot.add(doorness_query_cached,
-  label="door-ness",
-  axis="semantics"
+plot.add(plantness_query_cached,
+  label="plant-ness",
+  color=color.green,
 )
 
-plot.to_svg("assets/plot_doorness.svg")
+plot.to_svg("assets/plot_plantness.svg")
 ```
 
 <!--Result:-->
 ```
-Stream("color_image_embedded") | vector_search() | order_by(ts) -> FnTransformer(fn=<lambda>) -> FnIterTransformer(fn=_smooth) -> FnIterTransformer(fn=_normalize)
+Stream("color_image_embedded") | vector_search() | order_by(ts) -> FnTransformer(fn=<lambda>)
 Stream("cache")
 Stream("cache"): 267 items, 2025-12-26 11:09:11 — 2025-12-26 11:13:59 (288.4s)
 ```
 
 
 
-![output](assets/plot_doorness.svg)
+![output](assets/plot_plantness.svg)
 
-Looks trash, why? Embeddings are calculated according to some minimum picture brightness.
+We can be pretty sure the robot saw some plants by peaks at beginning and end of data, but this looks trash, why?
 
-Completely dark images are both useless and also semantically close to everything.
+Embeddings are calculated according to some minimum picture brightness. Completely dark images are both useless and also semantically close to everything.
 
-Let's investigate how our embeddings stream relates to image brightness:
+Let's investigate how our embedding stream relates to image brightness:
 
 ```python session=robotdata
 
 plot = Plot()
 
-plot.add(doorness_query_cached,
-  label="door-ness",
-  axis="semantics"
+plot.add(plantness_query_cached,
+  label="plant-ness",
+  color=color.green,
 )
 
 plot.add(
-    images.transform(throttle(0.5)).map_data(lambda obs: obs.data.brightness).transform(smooth_time(5.0)),
+    images.transform(throttle(0.5)).map_data(lambda obs: obs.data.brightness),
     label="brightness",
+    axis="brightness"
 )
 
-plot.add(HLine(y=0.1, style=Style.dashed, color=color.red))
+plot.add(HLine(y=0.15, style=Style.dashed, color=color.red))
 
-plot.to_svg("assets/plot_doorness_brightness.svg")
+plot.to_svg("assets/plot_plantness_brightness.svg")
 ```
 
 
-![output](assets/plot_doorness_brightness.svg)
+![output](assets/plot_plantness_brightness.svg)
 
 We see that stuff isn't embedded below some minimum brightness.
 
@@ -189,14 +184,58 @@ Let's now fill the gaps in our semantic graph a bit, looks super ugly above, we 
 plot = Plot()
 
 plot.add(
-    doorness_query_cached,
-    label="door-ness",
+    plantness_query_cached.transform(smooth_time(5.0)).transform(normalize()),
+    label="plant-ness",
+    color=color.green,
     gap_fill=0.0,
     connect=7.5
 )
 
-plot.to_svg("assets/plot_doorness_gap_fill.svg")
+plot.to_svg("assets/plot_plantness_gap_fill.svg")
 
 ```
 
-![output](assets/plot_doorness_gap_fill.svg)
+![output](assets/plot_plantness_gap_fill.svg)
+
+Looks better, these are two or three very obvious peaks, I'm curious let's see what was captured then.
+
+
+```python session=robotdata
+from dimos.memory2.vis.utils import mosaic
+from dimos.memory2.vis.plot.elements import VLine
+
+def peak_image(relative_t: float, tolerance: float = 10.0):
+    window = list(plantness_query_cached.at_relative(relative_t, tolerance=tolerance))
+    peak = max(window, key=lambda o: o.data)
+    return images.at(peak.ts).first()
+
+image1 = peak_image(40, tolerance=10)
+image2 = peak_image(249, tolerance=20)
+
+plot = Plot()
+
+plot.add(
+    plantness_query_cached.transform(normalize()),
+    label="plant-ness",
+    color=color.green,
+    gap_fill=0.0,
+    connect=7.5
+)
+
+plot.add(VLine(image1.ts, color=color.red))
+
+plot.add(VLine(image2.ts, color=color.red))
+
+plot.to_svg("assets/plot_plantness_marked.svg")
+
+m = mosaic([image1, image2], cols=2)
+m.data.save("assets/plants.png")
+```
+
+
+
+
+
+![output](assets/plants.png)
+
+![output](assets/plot_plantness_marked.svg)

@@ -16,9 +16,23 @@
 
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import Any
 
-from dimos.memory2.vis.plot.elements import HLine, Markers, PlotElement, Series
+from dimos.memory2.vis.plot.elements import HLine, Markers, PlotElement, Series, VLine
+
+
+class TimeAxis(StrEnum):
+    """How the x-axis is formatted.
+
+    - ``raw``: unix timestamps as-is (matplotlib's default numeric formatter).
+    - ``relative``: seconds since the first sample, e.g. ``"0s"``, ``"60s"``.
+    - ``absolute``: wall-clock time from the system timezone, e.g. ``"11:09:11"``.
+    """
+
+    raw = "raw"
+    relative = "relative"
+    absolute = "absolute"
 
 
 class Plot:
@@ -30,15 +44,16 @@ class Plot:
     - list[Observation[float]] → extracts obs.ts/obs.data into Series
     """
 
-    def __init__(self) -> None:
+    def __init__(self, time_axis: TimeAxis = TimeAxis.relative) -> None:
         self._elements: list[PlotElement] = []
+        self.time_axis = time_axis
 
     def add(self, element: Any, **kwargs: Any) -> Plot:
         """Add a plot element with smart dispatch."""
         from dimos.memory2.stream import Stream
         from dimos.memory2.type.observation import Observation
 
-        if isinstance(element, (Series, Markers, HLine)):
+        if isinstance(element, (Series, Markers, HLine, VLine)):
             self._elements.append(element)
         elif isinstance(element, Stream):
             self._add_from_observations(element.fetch(), **kwargs)
@@ -54,7 +69,7 @@ class Plot:
         else:
             raise TypeError(
                 f"Plot.add() does not know how to handle {type(element).__name__}. "
-                f"Pass Series, Markers, HLine, a Stream, or a list of Observations."
+                f"Pass Series, Markers, HLine, VLine, a Stream, or a list of Observations."
             )
 
         return self

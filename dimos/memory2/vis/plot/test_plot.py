@@ -19,8 +19,8 @@ import math
 import pytest
 
 from dimos.memory2.type.observation import Observation
-from dimos.memory2.vis.plot.elements import HLine, Markers, Series, Style
-from dimos.memory2.vis.plot.plot import Plot
+from dimos.memory2.vis.plot.elements import HLine, Markers, Series, Style, VLine
+from dimos.memory2.vis.plot.plot import Plot, TimeAxis
 
 
 class TestPlotAdd:
@@ -207,6 +207,24 @@ class TestPlotSVG:
         assert ts == [0.0, 1.0, 1.0, 5.0, 5.0]
         assert values == [10.0, 20.0, 42.0, 42.0, 30.0]
 
+    def test_vline_renders(self):
+        from dimos.memory2.vis import color
+
+        p = Plot()
+        p.add(Series(ts=[0, 1, 2], values=[0, 1, 2]))
+        p.add(VLine(x=1.0, color=color.red, label="marker"))
+        svg = p.to_svg()
+        assert "<svg" in svg
+        assert "marker" in svg
+        assert color.red in svg
+
+    def test_vline_add_dispatch(self):
+        # VLine should be storable via Plot.add() like the other element types.
+        p = Plot()
+        p.add(VLine(x=5.0))
+        assert len(p) == 1
+        assert isinstance(p.elements[0], VLine)
+
     def test_hline_uses_style_enum(self):
         # Default is Style.dashed; renderer should still produce dasharray
         p = Plot()
@@ -214,6 +232,42 @@ class TestPlotSVG:
         p.add(HLine(y=0.5, style=Style.dotted))
         svg = p.to_svg()
         assert "stroke-dasharray" in svg
+
+    def test_time_axis_default_is_relative(self):
+        assert Plot().time_axis == TimeAxis.relative
+
+    def test_time_axis_relative_shows_seconds_from_zero(self):
+        # Use unix-ish timestamps. With relative mode the tick labels should
+        # be small second counts ("0s", "60s", ...), not huge unix numbers.
+        p = Plot()  # default relative
+        p.add(Series(ts=[1_700_000_000, 1_700_000_060, 1_700_000_120], values=[1, 2, 3]))
+        svg = p.to_svg()
+        assert "0s" in svg
+        assert "120s" in svg or "60s" in svg
+        # The raw unix number should not be rendered as a tick label.
+        assert "1700000000" not in svg
+
+    def test_time_axis_absolute_shows_hhmmss(self):
+        # Pick a timestamp whose local HH:MM is determinate enough to check.
+        # Use 1_700_000_000 as an arbitrary reference; we can't assume a timezone,
+        # but the format HH:MM:SS should still be present as ":" separators.
+        p = Plot(time_axis=TimeAxis.absolute)
+        p.add(Series(ts=[1_700_000_000, 1_700_000_030], values=[1, 2]))
+        svg = p.to_svg()
+        # HH:MM:SS format means colons should appear in at least one tick label.
+        import re
+
+        # matplotlib emits tick labels as <text>HH:MM:SS</text>
+        assert re.search(r"\d\d:\d\d:\d\d", svg)
+
+    def test_time_axis_raw_preserves_default_matplotlib_format(self):
+        # In raw mode we do nothing, so matplotlib's default numeric formatter
+        # runs. Big unix timestamps get rendered in scientific form.
+        p = Plot(time_axis=TimeAxis.raw)
+        p.add(Series(ts=[1_700_000_000, 1_700_000_060], values=[1, 2]))
+        svg = p.to_svg()
+        # Raw mode should not produce "0s" style labels.
+        assert "0s" not in svg
 
     def test_opacity_appears_in_svg(self):
         # opacity=0.4 should land as opacity="0.4" on the matplotlib-rendered
