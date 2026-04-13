@@ -62,7 +62,6 @@ def color(value: float, lo: float = 0.0, hi: float = 1.0, cmap: str = "turbo") -
     return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
 
 
-# ---------------------------------------------------------------------------
 # Named palette: 12 visually-distinct colors that share visual weight.
 #
 # Indices 0..5 are hand-curated flat-UI colors that match the defaults in
@@ -72,7 +71,6 @@ def color(value: float, lo: float = 0.0, hi: float = 1.0, cmap: str = "turbo") -
 # the largest hue gaps between the curated colors. Together they form 12
 # maximally-distinct hues. Beyond 12, `palette_iter` continues with a
 # golden-angle hue walk that uses the same average L/S.
-# ---------------------------------------------------------------------------
 
 blue = "#3498db"
 red = "#e74c3c"

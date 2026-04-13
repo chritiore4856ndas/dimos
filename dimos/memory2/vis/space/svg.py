@@ -82,9 +82,7 @@ def _y(wy: float) -> float:
     return -wy
 
 
-# ---------------------------------------------------------------------------
 # Element renderers — all emit world-coordinate SVG and grow Bounds
-# ---------------------------------------------------------------------------
 
 
 def _render_point(el: Point, b: Bounds) -> str:
@@ -245,9 +243,7 @@ def _render_occupancy_grid(el: OccupancyGrid, b: Bounds) -> str:
     )
 
 
-# ---------------------------------------------------------------------------
 # Dispatch + top-level render
-# ---------------------------------------------------------------------------
 
 
 def _render_element(el: SpaceElement, b: Bounds) -> str:

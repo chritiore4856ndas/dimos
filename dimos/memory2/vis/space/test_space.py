@@ -211,7 +211,7 @@ class TestSpaceObservations:
         s.add(obs)
         assert len(s) == 1
         el = s.elements[0]
-        assert isinstance(el, Arrow)
+        assert isinstance(el, EmbeddedObservation)
 
 
 class TestSpaceConvenience:
