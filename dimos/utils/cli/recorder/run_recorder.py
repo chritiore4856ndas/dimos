@@ -249,10 +249,6 @@ class RecorderApp(App[None]):
         if self._lcm and hasattr(self._lcm, "stop"):
             self._lcm.stop()
 
-    # ------------------------------------------------------------------
-    # Actions
-    # ------------------------------------------------------------------
-
     def action_toggle_select(self) -> None:
         """Toggle selection on the row under the cursor."""
         if self._table is None or self._table.row_count == 0:
@@ -343,10 +339,6 @@ class RecorderApp(App[None]):
             self._recorder.delete_range(lo, hi)
             self._trim_in = self._trim_out = None
 
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
-
     def _all_topics(self) -> list[Any]:
         """All discovered topics from the spy."""
         from dimos.protocol.pubsub.impl.lcmpubsub import Topic as LCMTopic
@@ -379,17 +371,13 @@ class RecorderApp(App[None]):
         if self._recorder:
             await self._recorder.seek(self._recorder.position + delta)
 
-    # ------------------------------------------------------------------
-    # Refresh
-    # ------------------------------------------------------------------
-
     def _refresh(self) -> None:
         if self._table is None:
             return
         assert self._recorder is not None
         spy = self._spy
 
-        # ---- Build unified row list: live topics + recorded-only streams ----
+        # Build unified row list: live topics + recorded-only streams
         # Each row: (stream_name, channel, spy_topic_or_None)
         rows: dict[str, tuple[str, Any]] = {}  # stream_name -> (channel, spy_topic)
 
@@ -406,7 +394,7 @@ class RecorderApp(App[None]):
             if sname not in rows:
                 rows[sname] = (sname, None)
 
-        # ---- Render table ----
+        # Render table
         # Remember cursor position so we can restore it
         cursor_row = self._table.cursor_coordinate.row if self._table.row_count > 0 else 0
         self._table.clear(columns=False)
@@ -476,7 +464,7 @@ class RecorderApp(App[None]):
             row = min(cursor_row, self._table.row_count - 1)
             self._table.move_cursor(row=row)
 
-        # ---- Timeline ----
+        # Timeline
         duration = self._recorder.duration
         position = self._recorder.position
 
@@ -504,7 +492,7 @@ class RecorderApp(App[None]):
 
         self.query_one("#timeline", Static).update(timeline)
 
-        # ---- Status bar ----
+        # Status bar
         status = Text()
         if self._recorder.is_recording:
             status.append(" ● REC ", style=f"bold on {theme.RED}")

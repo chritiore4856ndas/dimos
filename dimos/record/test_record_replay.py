@@ -45,7 +45,7 @@ class FakePubSub:
     """Minimal PubSub that supports subscribe_all for testing."""
 
     def __init__(self) -> None:
-        self._subscribers: list[Callable[[Any, Any], Any]] = []
+        self._subscribers: list[Callable[[Any, Any], None]] = []
         self._lock = threading.Lock()
         self._started = False
 
@@ -59,14 +59,20 @@ class FakePubSub:
         # Not needed for recording tests
         pass
 
-    def subscribe_all(self, callback: Callable[[Any, Any], Any]) -> Callable[[], None]:
+    def subscribe(self, topic: object, callback: Callable[[Any, Any], None]) -> Callable[[], None]:
+        key = str(topic)
+
+        def filtered(msg: Any, t: Any) -> None:
+            if str(t) == key:
+                callback(msg, t)
+
         with self._lock:
-            self._subscribers.append(callback)
+            self._subscribers.append(filtered)
 
         def unsub() -> None:
             with self._lock:
                 with suppress(ValueError):
-                    self._subscribers.remove(callback)
+                    self._subscribers.remove(filtered)
 
         return unsub
 
@@ -89,6 +95,17 @@ class SimpleMsg:
         return isinstance(other, SimpleMsg) and self.value == other.value
 
 
+ALL_TOPICS = [
+    FakeTopic("/sensor/lidar"),
+    FakeTopic("/sensor/odom"),
+    FakeTopic("/sensor"),
+    FakeTopic("/data"),
+    FakeTopic("/a"),
+    FakeTopic("/from_ps1"),
+    FakeTopic("/from_ps2"),
+]
+
+
 @pytest.fixture
 def tmp_db(tmp_path: Path) -> str:
     return str(tmp_path / "test_recording.db")
@@ -98,7 +115,7 @@ class TestRecordReplay:
     async def test_record_and_list_streams(self, tmp_db: str) -> None:
         pubsub = FakePubSub()
         async with RecordReplay(tmp_db) as rec:
-            rec.start_recording([pubsub])
+            rec.start_recording([pubsub], topics=ALL_TOPICS)
             assert rec.is_recording
 
             pubsub.emit("/sensor/lidar", SimpleMsg(1.0))
@@ -116,7 +133,7 @@ class TestRecordReplay:
     async def test_record_and_query(self, tmp_db: str) -> None:
         pubsub = FakePubSub()
         async with RecordReplay(tmp_db) as rec:
-            rec.start_recording([pubsub])
+            rec.start_recording([pubsub], topics=ALL_TOPICS)
 
             for i in range(10):
                 pubsub.emit("/data", SimpleMsg(float(i)))
@@ -133,7 +150,7 @@ class TestRecordReplay:
     async def test_duration(self, tmp_db: str) -> None:
         pubsub = FakePubSub()
         async with RecordReplay(tmp_db) as rec:
-            rec.start_recording([pubsub])
+            rec.start_recording([pubsub], topics=ALL_TOPICS)
             pubsub.emit("/a", SimpleMsg(0.0))
             await asyncio.sleep(0.1)
             pubsub.emit("/a", SimpleMsg(1.0))
@@ -144,7 +161,7 @@ class TestRecordReplay:
     async def test_stream_info(self, tmp_db: str) -> None:
         pubsub = FakePubSub()
         async with RecordReplay(tmp_db) as rec:
-            rec.start_recording([pubsub])
+            rec.start_recording([pubsub], topics=ALL_TOPICS)
             for i in range(5):
                 pubsub.emit("/sensor", SimpleMsg(float(i)))
                 await asyncio.sleep(0.01)
@@ -158,7 +175,7 @@ class TestRecordReplay:
     async def test_delete_range(self, tmp_db: str) -> None:
         pubsub = FakePubSub()
         async with RecordReplay(tmp_db) as rec:
-            rec.start_recording([pubsub])
+            rec.start_recording([pubsub], topics=ALL_TOPICS)
             for i in range(20):
                 pubsub.emit("/data", SimpleMsg(float(i)))
                 await asyncio.sleep(0.01)
@@ -178,7 +195,7 @@ class TestRecordReplay:
     async def test_trim(self, tmp_db: str) -> None:
         pubsub = FakePubSub()
         async with RecordReplay(tmp_db) as rec:
-            rec.start_recording([pubsub])
+            rec.start_recording([pubsub], topics=ALL_TOPICS)
             for i in range(30):
                 pubsub.emit("/data", SimpleMsg(float(i)))
                 await asyncio.sleep(0.01)
@@ -202,7 +219,7 @@ class TestRecordReplay:
         """Test that playback task starts and finishes."""
         pubsub = FakePubSub()
         async with RecordReplay(tmp_db) as rec:
-            rec.start_recording([pubsub])
+            rec.start_recording([pubsub], topics=ALL_TOPICS)
             for i in range(5):
                 pubsub.emit("/data", SimpleMsg(float(i)))
                 await asyncio.sleep(0.01)
@@ -217,7 +234,7 @@ class TestRecordReplay:
     async def test_stop_playback(self, tmp_db: str) -> None:
         pubsub = FakePubSub()
         async with RecordReplay(tmp_db) as rec:
-            rec.start_recording([pubsub])
+            rec.start_recording([pubsub], topics=ALL_TOPICS)
             for i in range(100):
                 pubsub.emit("/data", SimpleMsg(float(i)))
                 await asyncio.sleep(0.005)
@@ -232,7 +249,7 @@ class TestRecordReplay:
     async def test_seek(self, tmp_db: str) -> None:
         pubsub = FakePubSub()
         async with RecordReplay(tmp_db) as rec:
-            rec.start_recording([pubsub])
+            rec.start_recording([pubsub], topics=ALL_TOPICS)
             for i in range(10):
                 pubsub.emit("/data", SimpleMsg(float(i)))
                 await asyncio.sleep(0.01)
@@ -245,7 +262,7 @@ class TestRecordReplay:
         ps1 = FakePubSub()
         ps2 = FakePubSub()
         async with RecordReplay(tmp_db) as rec:
-            rec.start_recording([ps1, ps2])
+            rec.start_recording([ps1, ps2], topics=ALL_TOPICS)
             ps1.emit("/from_ps1", SimpleMsg(1.0))
             ps2.emit("/from_ps2", SimpleMsg(2.0))
             rec.stop_recording()
