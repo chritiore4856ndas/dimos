@@ -130,7 +130,9 @@ class ReplayConnection(UnitreeWebRTCConnection):
         }
         logging.getLogger(__name__).info(
             "ReplayConnection init: dataset=%s exit_on_eof=%s loop=%s",
-            dataset, exit_on_eof, self.replay_config["loop"],
+            dataset,
+            exit_on_eof,
+            self.replay_config["loop"],
         )
 
     def connect(self) -> None:

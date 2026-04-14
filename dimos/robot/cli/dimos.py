@@ -222,6 +222,7 @@ def run(
     # global_config.viewer at module top-level, so the override must be live
     # before autoconnect() pulls in the blueprint.
     from dimos.core.global_config import global_config
+
     if cli_config_overrides:
         global_config.update(**cli_config_overrides)
 

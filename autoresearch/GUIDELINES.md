@@ -75,7 +75,6 @@ In priority order:
 1. Pipeline recorder + `baseline_record.json` diff → real validation
    (currently stubbed `PASS`).
 2. `py-spy record` integration (replace `run_profile()` placeholder).
-3. 3× repetition + variance gate (`stdev/mean < 0.05`).
 4. Promote monkeypatched knobs (`lcm_loop_timeout_ms`,
    `rpc_thread_pool_max_workers`, `camera_info_publish_hz`) to
    `GlobalConfig` fields so optimizations become declarative config instead

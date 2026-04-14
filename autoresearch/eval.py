@@ -1,4 +1,18 @@
 #!/usr/bin/env python3
+# Copyright 2026 Dimensional Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Eval script for Go2 blueprint CPU/sys footprint autoresearch.
 
 Workflow:
@@ -13,16 +27,13 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import hashlib
+from dataclasses import asdict, dataclass, field
 import json
 import os
-import re
-import signal
-import subprocess
-import sys
-import time
-from dataclasses import asdict, dataclass, field
 from pathlib import Path
+import re
+import subprocess
+import time
 
 import psutil
 
@@ -40,7 +51,8 @@ BASE_REPLAY_CMD = [
     "--viewer=none",
     "--exit-on-eof",
     "--replay-dir=unitree_go2_bigoffice",
-    "run", "unitree-go2-basic",
+    "run",
+    "unitree-go2-basic",
 ]
 
 DEFAULT_TIMEOUT = 300  # 5 minutes — safety cap; full replay is ~4 min
@@ -64,6 +76,7 @@ class BenchmarkResult:
 @dataclass
 class MessageRecord:
     """Records LCM message activity for validation."""
+
     topic_counts: dict[str, int] = field(default_factory=dict)
     topic_hashes: dict[str, list[str]] = field(default_factory=dict)
 
@@ -119,7 +132,7 @@ class ProcessTreeMonitor:
         except psutil.NoSuchProcess:
             return []
 
-        all_procs = [root] + root.children(recursive=True)
+        all_procs = [root, *root.children(recursive=True)]
         result = []
         for p in all_procs:
             if p.pid not in self._known_pids:
@@ -172,7 +185,7 @@ def _collect_tree_cpu_times(pid: int) -> tuple[float, float]:
     total_sys = 0.0
     try:
         parent = psutil.Process(pid)
-        for p in [parent] + parent.children(recursive=True):
+        for p in [parent, *parent.children(recursive=True)]:
             try:
                 ct = p.cpu_times()
                 total_user += ct.user
@@ -204,13 +217,16 @@ def run_benchmark(timeout: int) -> BenchmarkResult:
     startup_code: str = ""
     try:
         import optimizations
+
         result = optimizations.apply()
         if isinstance(result, dict):
             extra_args = result.get("cli_args", [])
             extra_env = result.get("env", {})
             startup_code = result.get("startup_code", "")
-        print(f"OPTIMIZATIONS: applied (cli_args={extra_args}, env_keys={list(extra_env.keys())}, "
-              f"startup_code={'yes' if startup_code else 'no'})")
+        print(
+            f"OPTIMIZATIONS: applied (cli_args={extra_args}, env_keys={list(extra_env.keys())}, "
+            f"startup_code={'yes' if startup_code else 'no'})"
+        )
     except Exception as e:
         print(f"OPTIMIZATIONS: failed to apply - {e}")
 
@@ -264,7 +280,7 @@ def run_benchmark(timeout: int) -> BenchmarkResult:
     while proc.poll() is None:
         elapsed = time.monotonic() - start
         if elapsed > timeout:
-            print(f"TIMEOUT: collecting final cpu_times before kill...")
+            print("TIMEOUT: collecting final cpu_times before kill...")
             # Collect cpu_times from all processes before killing
             tree_user, tree_sys = _collect_tree_cpu_times(proc.pid)
             print(f"TIMEOUT: killing after {timeout}s")
@@ -284,7 +300,7 @@ def run_benchmark(timeout: int) -> BenchmarkResult:
         time.sleep(1.0)
 
     wall_time = time.monotonic() - start
-    stdout = proc.stdout.read().decode() if proc.stdout else ""
+    proc.stdout.read().decode() if proc.stdout else ""
     stderr = proc.stderr.read().decode() if proc.stderr else ""
 
     # Determine user/sys CPU time
@@ -366,7 +382,9 @@ def run_profile(duration: int = 30) -> None:
         # Try py-spy dump for a snapshot
         dump_proc = subprocess.run(
             ["py-spy", "dump", "--pid", str(proc.pid)],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if dump_proc.returncode == 0:
             PROFILE_PATH.write_text(dump_proc.stdout)
@@ -376,9 +394,7 @@ def run_profile(duration: int = 30) -> None:
         PROFILE_PATH.write_text(
             "Profile not available. Install py-spy for detailed profiling:\n"
             "  pip install py-spy\n"
-            "  py-spy record -o profile.svg -- "
-            + cmd
-            + "\n\n"
+            "  py-spy record -o profile.svg -- " + cmd + "\n\n"
             "Or run with cProfile:\n"
             "  python -m cProfile -s cumulative -c 'import subprocess; "
             f"subprocess.run({BASE_REPLAY_CMD})'\n"
@@ -414,12 +430,18 @@ def print_results(result: BenchmarkResult) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Go2 CPU footprint eval")
-    parser.add_argument("--profile-only", action="store_true",
-                        help="Only run profiling, skip benchmark")
-    parser.add_argument("--skip-profile", action="store_true",
-                        help="Skip profiling even on first run")
-    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT,
-                        help=f"Timeout in seconds (default: {DEFAULT_TIMEOUT})")
+    parser.add_argument(
+        "--profile-only", action="store_true", help="Only run profiling, skip benchmark"
+    )
+    parser.add_argument(
+        "--skip-profile", action="store_true", help="Skip profiling even on first run"
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_TIMEOUT,
+        help=f"Timeout in seconds (default: {DEFAULT_TIMEOUT})",
+    )
     args = parser.parse_args()
 
     # Step 1: Profile (first run only)
