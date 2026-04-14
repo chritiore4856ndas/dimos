@@ -43,7 +43,7 @@ BASE_REPLAY_CMD = [
     "run", "unitree-go2-basic",
 ]
 
-DEFAULT_TIMEOUT = 180  # 3 minutes — EOF runs are short; this is a safety cap
+DEFAULT_TIMEOUT = 300  # 5 minutes — safety cap; full replay is ~4 min
 
 
 @dataclass

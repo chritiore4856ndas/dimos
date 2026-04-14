@@ -140,8 +140,9 @@ jq -c 'select(.status=="keep") | {score, desc}' results.jsonl
 
 **Never** `git reset --hard` past the baseline commit. **Never** force-push.
 
-**Timeout per experiment:** A full EOF run is short (~10-30s CPU). If a
-single run exceeds 3 minutes, kill it and treat it as a crash.
+**Timeout per experiment:** A full EOF replay is ~4 minutes wall. Harness
+kills at 5 minutes (`DEFAULT_TIMEOUT = 300s`). If a single run exceeds
+that, it's treated as a hang/crash.
 
 **NEVER STOP.** Once the loop has begun, do not pause to ask "should I keep
 going?". The human is asleep or away and expects you to iterate
