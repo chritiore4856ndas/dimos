@@ -195,3 +195,24 @@ previous near-misses.
 Re-baseline with a clean `optimizations.py` (empty `apply()` returning
 `{}`) as your first action on any new session. Prior run history is not
 comparable across harness changes.
+
+## Results so far (2026-04-14)
+
+Baseline (empty knobs) vs optimized:
+
+| Metric | Baseline | Optimized | Change |
+|---|---|---|---|
+| SCORE | 24.11s | 2.04s | **-91.6%** |
+| REAL | 302.39s | 11.06s | **-96.3%** |
+| RSS | 1399 MB | 880 MB | **-37.1%** |
+| Threads | 237 | 35 | **-85.2%** |
+| CTX switches | 13587 | 367 | **-97.3%** |
+
+Top wins by impact:
+1. `DIMOS_SKIP_SENSOR_PUBLISH` — skip LCM encode+broadcast of unused lidar/video (-48.7%)
+2. `DIMOS_REPLAY_SPEED=1000` — compress wall time, removes idle poll overhead (-45.6%)
+3. `DIMOS_REPLAY_ONLY` — skip WebRTC/aiortc/sounddevice imports (-9.7%, -95MB RSS)
+4. `DIMOS_SKIP_TF` — skip 300Hz TF transform publishing during replay (-6.6%)
+5. BLAS pinning (OMP/MKL/OPENBLAS=1) — stop libs from spawning per-core threads (-57% threads)
+6. Lazy open3d import — avoids sklearn import chain (import 2.9s→1.5s)
+7. Lazy rerun import in Image — rerun spawns 16 threads at import
