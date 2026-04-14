@@ -107,7 +107,7 @@ OPENBLAS_NUM_THREADS = 1
 # Default is INFO; every transport/module logs a few lines per second.
 # WARNING or ERROR cuts stdout volume (and formatter CPU) substantially.
 ENABLE_LOG_REDUCTION = True
-LOG_LEVEL = "WARNING"  # "DEBUG" | "INFO" | "WARNING" | "ERROR"
+LOG_LEVEL = "WARNING"  # "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL"
 
 
 # ------------------------------------------------------------------
