@@ -356,9 +356,15 @@ class GO2Connection(Module, Camera, Pointcloud):
             self.odom.publish(msg)
 
     def publish_camera_info(self) -> None:
+        import os as _os
+        mode = _os.environ.get("DIMOS_CAMERA_INFO_MODE", "default")
+        if mode == "once":
+            self.camera_info.publish(self.camera_info_static)
+            return
+        interval = 10.0 if mode == "slow" else 1.0
         while True:
             self.camera_info.publish(self.camera_info_static)
-            time.sleep(1.0)
+            time.sleep(interval)
 
     @rpc
     def move(self, twist: Twist, duration: float = 0.0) -> bool:

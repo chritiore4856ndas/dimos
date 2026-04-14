@@ -75,7 +75,7 @@ RPC_POOL_MAX_WORKERS = 50  # upstream default
 #   "default": 1 Hz (upstream behavior)
 #   "slow":    0.1 Hz (every 10s)
 #   "once":    publish once on start, then exit thread
-CAMERA_INFO_MODE = "default"  # "default" | "slow" | "once"
+CAMERA_INFO_MODE = "once"  # "default" | "slow" | "once"
 
 
 # ------------------------------------------------------------------
@@ -165,24 +165,6 @@ def _build_startup_code() -> str:
             f"_rpc_mod.PubSubRPCBase._call_thread_pool_max_workers = {RPC_POOL_MAX_WORKERS}\n"
         )
 
-    if CAMERA_INFO_MODE == "slow":
-        lines.append(
-            "import dimos.robot.unitree.go2.connection as _go2_conn\n"
-            "import time as _t\n"
-            "def _slow_cam_info(self):\n"
-            "    while True:\n"
-            "        self.camera_info.publish(self.camera_info_static)\n"
-            "        _t.sleep(10.0)\n"
-            "_go2_conn.GO2Connection.publish_camera_info = _slow_cam_info\n"
-        )
-    elif CAMERA_INFO_MODE == "once":
-        lines.append(
-            "import dimos.robot.unitree.go2.connection as _go2_conn\n"
-            "def _once_cam_info(self):\n"
-            "    self.camera_info.publish(self.camera_info_static)\n"
-            "_go2_conn.GO2Connection.publish_camera_info = _once_cam_info\n"
-        )
-
     return "".join(lines)
 
 
@@ -214,6 +196,9 @@ def apply() -> dict:
 
     if ENABLE_REPLAY_PREFETCH:
         env["DIMOS_REPLAY_PREFETCH"] = str(REPLAY_PREFETCH_SIZE)
+
+    if CAMERA_INFO_MODE != "default":
+        env["DIMOS_CAMERA_INFO_MODE"] = CAMERA_INFO_MODE
 
     startup_code = _build_startup_code()
     if startup_code:
