@@ -890,6 +890,12 @@ class ArduinoModule(NativeModule):
         # (dsp_protocol, lcm_coretypes_arduino) and the generated
         # per-message Arduino type headers under ``arduino_msgs/``.
         extra_flags = f"-I{common} -I{msgs} -DF_CPU=16000000UL"
+        if self.config.virtual:
+            # QEMU's AVR USART model doesn't fire interrupts, so
+            # HardwareSerial's ISR never triggers.  Use direct register
+            # access instead (the 2-byte FIFO doesn't overflow in
+            # simulation because QEMU runs AVR faster than real time).
+            extra_flags += " -DDSP_DIRECT_USART"
 
         cmd = [
             _arduino_cli_bin(),
@@ -1015,6 +1021,7 @@ class ArduinoModule(NativeModule):
     def _flash(self) -> None:
         """Flash the compiled sketch to the Arduino."""
         sketch_dir = self._resolve_sketch_dir()
+        build_dir = self._build_dir()
         port = self.config.port
         if not port:
             raise RuntimeError("No port configured for flashing")
@@ -1026,6 +1033,8 @@ class ArduinoModule(NativeModule):
             port,
             "--fqbn",
             self.config.board_fqbn,
+            "--input-dir",
+            str(build_dir),
             str(sketch_dir),
         ]
 
@@ -1037,7 +1046,26 @@ class ArduinoModule(NativeModule):
             timeout=self.config.flash_timeout,
         )
         if result.returncode != 0:
-            raise RuntimeError(f"Arduino flash failed:\n{result.stderr}\n{result.stdout}")
+            combined = f"{result.stderr}\n{result.stdout}"
+            hint = ""
+            if "Permission denied" in combined and port:
+                import sys
+
+                if sys.platform == "linux":
+                    hint = (
+                        f"\n\nHint: the current user cannot access {port}. "
+                        f"Quick fix:\n"
+                        f"  sudo chmod 666 {port}\n"
+                        f"Permanent fix (requires re-login):\n"
+                        f"  sudo usermod -a -G dialout $USER"
+                    )
+                else:
+                    hint = (
+                        f"\n\nHint: the current user cannot access {port}. "
+                        f"Check that your user has read/write access to the "
+                        f"serial device."
+                    )
+            raise RuntimeError(f"Arduino flash failed:\n{combined}{hint}")
         logger.info("Arduino flashed successfully", port=port)
 
 

@@ -257,41 +257,52 @@ static inline enum dsp_parse_event dsp_feed_byte(struct dsp_parser *p, uint8_t b
 #ifdef ARDUINO
 
 /* ======================================================================
- * Arduino Implementation — direct USART register access (polled)
+ * Arduino Implementation
  *
- * We bypass Arduino's HardwareSerial entirely.  HardwareSerial uses
- * interrupt-driven TX which doesn't work in QEMU's AVR USART model
- * and adds buffering/latency on real hardware.  Direct register access
- * is faster, smaller, and works in any AVR simulator.
+ * Two back-ends:
  *
- * Currently supports USART0 on ATmega328P/2560/etc.  Other AVRs (e.g.
- * the 32U4 in the Leonardo — USB-CDC, not a USART) would get silent
- * runtime failure, so we hard-error at compile time instead.
+ * 1. **HardwareSerial** (default on real hardware) — uses Arduino's
+ *    ``Serial`` object, which has a 64-byte interrupt-driven RX buffer.
+ *    At 115200 baud bytes arrive every ~87µs; the 2-byte hardware FIFO
+ *    overflows whenever the sketch does any non-trivial work (encoding a
+ *    reply, printing debug text, even a 1ms delay).  HardwareSerial
+ *    handles this transparently via the RXCIE0 ISR.
+ *
+ * 2. **Direct USART register access** (QEMU / simulator builds) — used
+ *    when ``DSP_DIRECT_USART`` is defined.  QEMU's AVR USART model
+ *    does not fire interrupts, so HardwareSerial's ISR never triggers
+ *    and the RX buffer stays empty.  Direct register access works
+ *    because QEMU simulates AVR instructions far faster than real time,
+ *    so the 2-byte FIFO never overflows in practice.
+ *
+ * To force the direct path on real hardware (e.g. bare-metal without
+ * the Arduino core), ``-DDSP_DIRECT_USART`` in compile flags.
  * ====================================================================== */
+
+#include <Arduino.h>
+
+#ifdef DSP_DIRECT_USART
+
+/* --- Direct USART0 (QEMU / bare-metal) --- */
+
+#include <avr/io.h>
 
 #if !defined(__AVR_ATmega328P__) && !defined(__AVR_ATmega328PB__) && \
     !defined(__AVR_ATmega2560__) && !defined(__AVR_ATmega1280__)
-#error "dsp_protocol.h currently only supports ATmega328P / 328PB / 1280 / 2560 USART0. Add your chip's UBRRn/UCSRnA/etc. here or select a supported board."
+#error "DSP_DIRECT_USART only supports ATmega328P / 328PB / 1280 / 2560 USART0."
 #endif
 
-#include <Arduino.h>
-#include <avr/io.h>
-
-/* --- Direct USART0 helpers --- */
-
 static inline void _dsp_usart_init(uint32_t baud) {
-    /* UBRR = F_CPU / (16 * baud) - 1, with U2X=0 */
-    /* For higher baud accuracy, use U2X=1: UBRR = F_CPU / (8 * baud) - 1 */
     uint16_t ubrr = (uint16_t)((F_CPU / 8 / baud) - 1);
     UBRR0H = (uint8_t)(ubrr >> 8);
     UBRR0L = (uint8_t)(ubrr & 0xFF);
-    UCSR0A = (1 << U2X0);                      /* Double speed */
-    UCSR0B = (1 << RXEN0) | (1 << TXEN0);      /* Enable RX and TX */
-    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);    /* 8 data bits, 1 stop, no parity */
+    UCSR0A = (1 << U2X0);
+    UCSR0B = (1 << RXEN0) | (1 << TXEN0);
+    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);
 }
 
 static inline void _dsp_usart_write(uint8_t b) {
-    while (!(UCSR0A & (1 << UDRE0))) { /* wait for empty TX buffer */ }
+    while (!(UCSR0A & (1 << UDRE0))) {}
     UDR0 = b;
 }
 
@@ -302,6 +313,26 @@ static inline bool _dsp_usart_available(void) {
 static inline uint8_t _dsp_usart_read(void) {
     return UDR0;
 }
+
+#else /* !DSP_DIRECT_USART — HardwareSerial (real hardware) */
+
+static inline void _dsp_usart_init(uint32_t baud) {
+    Serial.begin(baud);
+}
+
+static inline void _dsp_usart_write(uint8_t b) {
+    Serial.write(b);
+}
+
+static inline bool _dsp_usart_available(void) {
+    return Serial.available() > 0;
+}
+
+static inline uint8_t _dsp_usart_read(void) {
+    return (uint8_t)Serial.read();
+}
+
+#endif /* DSP_DIRECT_USART */
 
 /* --- Internal state ---
  *

@@ -73,6 +73,10 @@ void loop() {
         }
     }
 
-    /* _delay_ms requires a compile-time constant */
-    _delay_ms(50);
+    /* Short delay to yield CPU.  Must be short enough that the 2-byte
+     * USART hardware FIFO does not overflow between polls — at 115200
+     * baud a byte arrives every ~87µs, so 1ms gives comfortable margin
+     * while still preventing a tight spin.  The original 50ms caused
+     * data loss on real hardware (no interrupt-driven RX buffering). */
+    _delay_ms(1);
 }
