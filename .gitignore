@@ -77,3 +77,7 @@ CLAUDE.MD
 htmlcov/
 .coverage
 .coverage.*
+
+# Rust workspace build artifacts
+target/
+Cargo.lock

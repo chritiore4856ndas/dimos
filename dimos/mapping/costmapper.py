@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import csv
 from dataclasses import asdict
+import os
 import time
 
 from pydantic import Field
@@ -32,6 +34,17 @@ from dimos.utils.logging_config import setup_logger
 
 logger = setup_logger()
 
+_TIMING_CSV = os.path.expanduser("~/costmapper_timing_python.csv")
+
+
+def _write_timing_row(compute_ms: float, total_ms: float, n_points: int) -> None:
+    write_header = not os.path.exists(_TIMING_CSV)
+    with open(_TIMING_CSV, "a", newline="") as f:
+        writer = csv.writer(f)
+        if write_header:
+            writer.writerow(["timestamp_s", "compute_ms", "total_ms", "n_points"])
+        writer.writerow([time.time(), f"{compute_ms:.3f}", f"{total_ms:.3f}", n_points])
+
 
 class Config(ModuleConfig):
     algo: str = "height_cost"
@@ -47,22 +60,27 @@ class CostMapper(Module):
     def start(self) -> None:
         super().start()
 
-        def _publish_costmap(grid: OccupancyGrid, calc_time_ms: float, rx_monotonic: float) -> None:
+        def _publish_costmap(
+            grid: OccupancyGrid, compute_ms: float, total_start: float, n_points: int
+        ) -> None:
             self.global_costmap.publish(grid)
+            total_ms = (time.perf_counter() - total_start) * 1000
+            _write_timing_row(compute_ms, total_ms, n_points)
 
         def _calculate_and_time(
             msg: PointCloud2,
-        ) -> tuple[OccupancyGrid, float, float]:
-            rx_monotonic = time.monotonic()  # Capture receipt time
-            start = time.perf_counter()
+        ) -> tuple[OccupancyGrid, float, float, int]:
+            total_start = time.perf_counter()
+            n_points = len(msg)
+            compute_start = time.perf_counter()
             grid = self._calculate_costmap(msg)
-            elapsed_ms = (time.perf_counter() - start) * 1000
-            return grid, elapsed_ms, rx_monotonic
+            compute_ms = (time.perf_counter() - compute_start) * 1000
+            return grid, compute_ms, total_start, n_points
 
         self.register_disposable(
             self.global_map.observable()  # type: ignore[no-untyped-call]
             .pipe(ops.map(_calculate_and_time))
-            .subscribe(lambda result: _publish_costmap(result[0], result[1], result[2]))
+            .subscribe(lambda result: _publish_costmap(result[0], result[1], result[2], result[3]))
         )
 
     @rpc

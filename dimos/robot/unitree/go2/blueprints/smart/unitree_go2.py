@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from dimos.core.coordination.blueprints import autoconnect
-from dimos.mapping.costmapper import CostMapper
+from dimos.mapping.costmapper_native import RustCostMapper
 from dimos.mapping.voxels import VoxelGridMapper
 from dimos.navigation.frontier_exploration.wavefront_frontier_goal_selector import (
     WavefrontFrontierExplorer,
@@ -26,10 +26,11 @@ from dimos.robot.unitree.go2.blueprints.basic.unitree_go2_basic import unitree_g
 unitree_go2 = autoconnect(
     unitree_go2_basic,
     VoxelGridMapper.blueprint(),
-    CostMapper.blueprint(),
+    RustCostMapper.blueprint(),
+    # CostMapper.blueprint(),
     ReplanningAStarPlanner.blueprint(),
     WavefrontFrontierExplorer.blueprint(),
     PatrollingModule.blueprint(),
-).global_config(n_workers=7, robot_model="unitree_go2")
+).global_config(n_workers=8, robot_model="unitree_go2")
 
 __all__ = ["unitree_go2"]
