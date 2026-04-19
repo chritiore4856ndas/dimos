@@ -74,4 +74,5 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 asyncio_mode = "auto"
 # show individual test names instead of just dots
-addopts = "-v"
+# also show local variables on failure, helpful for debugging
+addopts = "-v --tb=short --showlocals"
