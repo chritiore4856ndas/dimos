@@ -73,3 +73,5 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# show individual test names instead of just dots
+addopts = "-v"
