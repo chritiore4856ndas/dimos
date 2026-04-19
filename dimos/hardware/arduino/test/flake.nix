@@ -5,7 +5,8 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     dimos-lcm = {
-      url = "github:dimensionalOS/dimos-lcm/main";
+      # Pin to jeff/feat/arduino until that branch merges to main.
+      url = "github:dimensionalOS/dimos-lcm/jeff/feat/arduino";
       flake = false;
     };
   };

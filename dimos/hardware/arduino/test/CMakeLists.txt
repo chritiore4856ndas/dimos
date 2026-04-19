@@ -11,8 +11,8 @@ if(NOT DIMOS_LCM_DIR)
 endif()
 set(LCM_CPP_MSGS "${DIMOS_LCM_DIR}/generated/cpp_lcm_msgs")
 
-# Our Arduino C headers
-set(ARDUINO_MSGS "${CMAKE_CURRENT_SOURCE_DIR}/../common/arduino_msgs")
+# Arduino C message headers from dimos-lcm
+set(ARDUINO_MSGS "${DIMOS_LCM_DIR}/generated/arduino_c_msgs")
 set(ARDUINO_COMMON "${CMAKE_CURRENT_SOURCE_DIR}/../common")
 
 # LCM library (for lcm_coretypes.h used by the C++ reference types)
@@ -21,8 +21,8 @@ find_package(lcm REQUIRED)
 add_executable(test_wire_compat test_wire_compat.cpp)
 
 target_include_directories(test_wire_compat PRIVATE
-    ${ARDUINO_MSGS}       # Our C headers: geometry_msgs/Vector3.h etc.
-    ${ARDUINO_COMMON}     # lcm_coretypes_arduino.h
+    ${ARDUINO_MSGS}       # C headers from dimos-lcm: geometry_msgs/Vector3.h etc.
+    ${ARDUINO_COMMON}     # dsp_protocol.h, dimos_lcm_serial.h
     ${LCM_CPP_MSGS}       # LCM C++ reference: geometry_msgs/Vector3.hpp etc.
 )
 

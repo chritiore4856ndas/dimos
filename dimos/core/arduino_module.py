@@ -134,6 +134,23 @@ def _arduino_tools_bin_dir() -> Path:
     return Path(out_paths[-1]) / "bin"
 
 
+def _arduino_msgs_dir() -> Path:
+    """Return the path to Arduino LCM message headers from dimos_arduino_tools.
+
+    These are the generated C encode/decode headers from dimos-lcm,
+    packaged into the dimos_arduino_tools nix output at share/arduino_msgs/.
+    """
+    tools_bin = _arduino_tools_bin_dir()
+    msgs_dir = tools_bin.parent / "share" / "arduino_msgs"
+    if not msgs_dir.is_dir():
+        raise RuntimeError(
+            f"Expected Arduino message headers at {msgs_dir} but directory "
+            "does not exist. Rebuild dimos_arduino_tools: "
+            "nix build .#dimos_arduino_tools"
+        )
+    return msgs_dir
+
+
 def _arduino_cli_bin() -> str:
     return str(_arduino_tools_bin_dir() / "arduino-cli")
 
@@ -159,7 +176,7 @@ class CTypeGenerator:
 #
 # This list is kept in sync with two other places:
 #   - dimos/hardware/arduino/cpp/main.cpp :: init_hash_registry()
-#   - dimos/hardware/arduino/common/arduino_msgs/**
+#   - dimos-lcm :: generated/arduino_c_msgs/**
 # `tests/test_arduino_msg_registry_sync.py` fails CI if any drift appears.
 _KNOWN_TYPE_HEADERS: dict[str, str] = {
     "std_msgs.Time": "std_msgs/Time.h",
@@ -931,7 +948,7 @@ class ArduinoModule(NativeModule):
         build_dir.mkdir(parents=True, exist_ok=True)
 
         common = str(_COMMON_DIR)
-        msgs = str(_COMMON_DIR / "arduino_msgs")
+        msgs = str(_arduino_msgs_dir())
         # ``dimos_arduino.h`` lives in the sketch dir (see
         # ``_generate_header`` for why); the sketch dir is on arduino-cli's
         # default include path, so no ``-I`` is needed for it.  The

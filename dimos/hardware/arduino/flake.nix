@@ -5,7 +5,8 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     dimos-lcm = {
-      url = "github:dimensionalOS/dimos-lcm/main";
+      # Pin to jeff/feat/arduino until that branch merges to main.
+      url = "github:dimensionalOS/dimos-lcm/jeff/feat/arduino";
       flake = false;
     };
     # Patched LCM that builds cleanly on macOS (pkg-config + fdatasync
@@ -43,12 +44,21 @@
         arduino-cli-unwrapped =
           pkgs.arduino-cli.pureGoPkg or pkgs.arduino-cli;
 
+        # Generated Arduino C message headers from dimos-lcm.  Packaged
+        # into dimos_arduino_tools so ArduinoModule can resolve them from
+        # the same nix store path it already uses for arduino-cli.
+        arduino_c_msgs = pkgs.runCommand "arduino-c-msgs" {} ''
+          mkdir -p $out/share/arduino_msgs
+          cp -r ${dimos-lcm}/generated/arduino_c_msgs/* $out/share/arduino_msgs/
+        '';
+
         dimos_arduino_tools = pkgs.symlinkJoin {
           name = "dimos-arduino-tools";
           paths = [
             arduino-cli-unwrapped
             pkgs.avrdude
             pkgs.qemu
+            arduino_c_msgs
           ];
         };
 

@@ -3,16 +3,16 @@
     "dimos-lcm": {
       "flake": false,
       "locked": {
-        "lastModified": 1769774949,
-        "narHash": "sha256-icRK7jerqNlwK1WZBrnIP04I2WozzFqTD7qsmnPxQuo=",
+        "lastModified": 1776561835,
+        "narHash": "sha256-aNYGV0l/gXP94/ppzEeYjPo3Yzl2NbhehT5JU5/C9go=",
         "owner": "dimensionalOS",
         "repo": "dimos-lcm",
-        "rev": "0aa72b7b1bd3a65f50f5c03485ee9b728df56afe",
+        "rev": "9300bae7f7b18e531c5d3ccc25b082a6107161da",
         "type": "github"
       },
       "original": {
         "owner": "dimensionalOS",
-        "ref": "main",
+        "ref": "jeff/feat/arduino",
         "repo": "dimos-lcm",
         "type": "github"
       }

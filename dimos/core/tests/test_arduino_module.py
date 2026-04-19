@@ -350,7 +350,37 @@ def test_cleanup_qemu_kills_on_terminate_timeout() -> None:
 
 
 def _arduino_common_dir() -> Path:
-    return _ARDUINO_HW_DIR / "common" / "arduino_msgs"
+    """Resolve Arduino message headers from dimos-lcm via nix.
+
+    These headers now live in dimos-lcm (not vendored in dimos4), so we
+    resolve them through `nix build` the same way ArduinoModule does at
+    runtime.  Skips if nix is not available.
+    """
+    import shutil
+    import subprocess
+
+    if shutil.which("nix") is None:
+        pytest.skip("nix not available — cannot resolve Arduino message headers")
+
+    result = subprocess.run(
+        ["nix", "build", ".#dimos_arduino_tools", "--print-out-paths", "--no-link"],
+        cwd=str(_ARDUINO_HW_DIR),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if result.returncode != 0:
+        pytest.skip(f"nix build failed: {result.stderr[:200]}")
+
+    out_paths = [line for line in result.stdout.splitlines() if line.strip()]
+    if not out_paths:
+        pytest.skip("nix build returned no paths")
+
+    msgs_dir = Path(out_paths[-1]) / "share" / "arduino_msgs"
+    if not msgs_dir.is_dir():
+        pytest.skip(f"Arduino message headers not found at {msgs_dir}")
+
+    return msgs_dir
 
 
 def _main_cpp_path() -> Path:
