@@ -75,4 +75,5 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 # show individual test names instead of just dots
 # also show local variables on failure, helpful for debugging
-addopts = "-v --tb=short --showlocals"
+# added -x so it stops on first failure - saves time when iterating locally
+addopts = "-v --tb=short --showlocals -x"
