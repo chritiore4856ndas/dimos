@@ -76,4 +76,5 @@ asyncio_mode = "auto"
 # show individual test names instead of just dots
 # also show local variables on failure, helpful for debugging
 # removed -x so all tests run even after a failure - I prefer seeing the full picture
-addopts = "-v --tb=short --showlocals"
+# added --no-header to reduce noise in output
+addopts = "-v --tb=short --showlocals --no-header"
