@@ -78,4 +78,5 @@ asyncio_mode = "auto"
 # removed -x so all tests run even after a failure - I prefer seeing the full picture
 # added --no-header to reduce noise in output
 # added -p no:warnings to suppress the wall of deprecation warnings cluttering output
-addopts = "-v --tb=short --showlocals --no-header -p no:warnings"
+# added --tb=long for my own debugging - I want the full traceback locally
+addopts = "-v --tb=long --showlocals --no-header -p no:warnings"
